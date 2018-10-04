@@ -106,7 +106,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-param" content="authenticity_token" />
 <meta name="csrf-token" content="XvBNaxjvfYAAmfnt75yYa2ftkG02wFSqA2aslOUmzZ2aLSGMNPdS0fad9goHPZVtVCMXXI+DBZ9Dd1viOk1PEQ==" />
-<title>Sign in-11</title>
+<title>Sign in</title>
 <link rel="stylesheet" media="screen" href="css/fullpage.css" />
 
   <link href='https://fonts.googleapis.com/css?family=Lato:400,900,400italic,700italic' rel='stylesheet'>
