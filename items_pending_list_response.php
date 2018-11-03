@@ -1,5 +1,32 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
 	
 	//include connection file 
 	include 'php/config.php';
@@ -13,77 +40,93 @@
 	$columns = array( 
 		0 =>'visitinfoid',
 		1 =>'scanneritemvalue',
-		2 =>'sitecode', 
-		3 =>'sitename',
-		4 =>'jobinfoid',
-		5 =>'jobno', 
-		6 =>'level1termid',
-		7 =>'level2termid',
-		8 =>'level3termid', 
-		9 =>'level4termid',
-		10 =>'scanneritemone',
-		11 =>'scanneritemtwo', 
-		12 =>'scanneritemthree',
-		13 =>'scanneritemfour',
-		14 =>'descriptionone', 
-		15 =>'descriptiontwo',
-		16 =>'descriptionthree',
-		17 =>'descriptionfour', 
-		18 =>'descriptionfive',
-		19 =>'descriptionsix',
-		20 =>'term2',
-		21 =>'term3',
-		22 =>'dateone',
-		23 =>'datetwo', 
-		24 =>'dropdownone',
-		25 =>'dropdowntwo',
-		26 =>'rejectedon'		
+		2 =>'genimageoneid', 
+		3 =>'genimagetwoid',
+		4 =>'sitecode', 
+		5 =>'sitename',
+		6 =>'jobinfoid',
+		7 =>'jobno', 
+		8 =>'level1termid',
+		9 =>'level2termid',
+		10 =>'level3termid', 
+		11 =>'level4termid',
+		12 =>'level5termid',
+		13 =>'scanneritemone',
+		14 =>'scanneroneimageid',
+		15 =>'scanneritemtwo', 
+		16 =>'scannertwoimageid', 
+		17 =>'scanneritemthree',
+		18 =>'scannerthreeimageid',
+		19 =>'scanneritemfour',
+		20 =>'scannerfourimageid',
+		21 =>'descriptionone', 
+		22 =>'descriptiontwo',
+		23 =>'descriptionthree',
+		24 =>'descriptionfour', 
+		25 =>'descriptionfive',
+		26 =>'descriptionsix',
+		27 =>'dateone',
+		28 =>'datetwo', 
+		29 =>'dropdownone',
+		30 =>'dropdowntwo',
+		31 =>'ispartialverified',
+		32 =>'isrejected',
+		33 =>'rfrejection',
+		34 =>'rejectedon',
+		35 =>'approvedtype',
+		36 =>'approvedon',
+		37 =>'',
+		38 =>'',
+		39 =>'capturedon'
 	);
 
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
-	if( !empty($params['search']['value']) ) {   
-		$where .=" AND ( CAST(V.visitinfoid AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.scanneritemvalue) LIKE '%".$params['search']['value']."%' ";    
-		$where .=" OR lower(L.sitecode) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(L.sitename) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(J.jobinfoid AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(J.jobno) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(D1.term) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(D2.term) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(D3.term) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(D4.term) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(D5.term) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.scanneritemone) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.scanneritemtwo) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.scanneritemthree) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.scanneritemfour) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.descriptionone) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.descriptiontwo) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.descriptionthree) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.descriptionfour) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.descriptionfive) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.descriptionsix) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(V.dateone AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(V.datetwo AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.dropdownone) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.dropdowntwo) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.rfrejection) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(V.rejectedon AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(V.approvedon AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(V.capturedon AS text) LIKE '%".$params['search']['value']."%' )";
+	if( !empty($params['search']['value']) ) {
+	     	$paramsearchval = quote_smart($params['search']['value']);
+		$where .=" AND ( L.sitename ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR J.jobno ILIKE '%".$paramsearchval."%' )";
+		/*$where .=" AND ( CAST(V.visitinfoid AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.scanneritemvalue ILIKE '%".$paramsearchval."%' ";    
+		$where .=" OR L.sitecode ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR L.sitename ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(J.jobinfoid AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR J.jobno ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR D1.term ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR D2.term ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR D3.term ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR D4.term ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR D5.term ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.scanneritemone ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.scanneritemtwo ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.scanneritemthree ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.scanneritemfour ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.descriptionone ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.descriptiontwo ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.descriptionthree ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.descriptionfour ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.descriptionfive ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.descriptionsix ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(V.dateone AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(V.datetwo AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.dropdownone ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.dropdowntwo ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.rfrejection ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(V.rejectedon AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(V.approvedon AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(V.capturedon AS text) ILIKE '%".$paramsearchval."%' )";*/
 	}
 	//echo $params['columns'][3]['search']['value'];exit;
 	
 	// getting total number records without any search
 	$sql = "SELECT V.visitinfoid, V.scanneritemvalue, L.sitecode, L.sitename, J.jobinfoid, J.jobno, V.scanneritemone, V.scanneroneimageid, V.scanneritemtwo, V.scannertwoimageid, V.scanneritemthree, V.scannerthreeimageid, V.scanneritemfour, V.scannerfourimageid, V.descriptionone, V.genimageoneid, V.descriptiontwo, V.genimagetwoid, V.descriptionthree, V.descriptionfour, V.descriptionfive, V.descriptionsix, V.dateone, V.datetwo, V.dropdownone, V.dropdowntwo, V.isrejected,V.rfrejection,V.rejectedon,V.ispartialverified,V.approvedtype,V.approvedon,V.barcodeinfoid, D1.term AS term1, D2.term AS term2, D3.term AS term3, D4.term AS term4, D5.term AS term5, V.capturedon
 		FROM visitinfo AS V
-		INNER JOIN dropdownmaster AS D1 ON V.level1termid=D1.termid
-		INNER JOIN dropdownmaster AS D2 ON V.level2termid=D2.termid
-		INNER JOIN dropdownmaster AS D3 ON V.level3termid=D3.termid
-		INNER JOIN dropdownmaster AS D4 ON V.level4termid=D4.termid
-		INNER JOIN dropdownmaster AS D5 ON V.level5termid=D5.termid
+		LEFT JOIN dropdownmaster AS D1 ON V.level1termid=D1.termid
+		LEFT JOIN dropdownmaster AS D2 ON V.level2termid=D2.termid
+		LEFT JOIN dropdownmaster AS D3 ON V.level3termid=D3.termid
+		LEFT JOIN dropdownmaster AS D4 ON V.level4termid=D4.termid
+		LEFT JOIN dropdownmaster AS D5 ON V.level5termid=D5.termid
 		INNER JOIN jobinfo AS J ON V.jobinfoid=J.jobinfoid
 		INNER JOIN location AS L ON J.locationid=L.locationid WHERE 1 = 1";
 		
@@ -94,7 +137,7 @@
 		}
 		else
 		{
-			$where .=" AND V.jobinfoid = '".$params['columns'][0]['search']['value']."' ";
+			$where .=" AND V.jobinfoid = '".quote_smart($params['columns'][0]['search']['value'])."' ";
 		}
 	}
 
@@ -109,12 +152,12 @@
 			$where .=" AND V.barcodeinfoid IS NOT null AND V.isrejected='0' ";
 			if( !empty($params['columns'][2]['search']['value']) ) 
 			{ 
-				$where .=" AND V.approvedon >= '".$params['columns'][2]['search']['value']."' ";
+				$where .=" AND V.approvedon >= '".quote_smart($params['columns'][2]['search']['value'])."' ";
 			}
 
 			if( !empty($params['columns'][3]['search']['value']) ) 
 			{ 
-				$where .=" AND V.approvedon <= '".$params['columns'][3]['search']['value']." 23:59:59' ";
+				$where .=" AND V.approvedon <= '".quote_smart($params['columns'][3]['search']['value'])." 23:59:59' ";
 			}
 		}	
 		else
@@ -123,12 +166,12 @@
 			$where .=" AND V.isrejected='1' AND V.approvedtype='0' ";
 			if( !empty($params['columns'][2]['search']['value']) ) 
 			{ 
-				$where .=" AND V.rejectedon >= '".$params['columns'][2]['search']['value']."' ";
+				$where .=" AND V.rejectedon >= '".quote_smart($params['columns'][2]['search']['value'])."' ";
 			}
 
 			if( !empty($params['columns'][3]['search']['value']) ) 
 			{ 
-				$where .=" AND V.rejectedon <= '".$params['columns'][3]['search']['value']." 23:59:59' ";
+				$where .=" AND V.rejectedon <= '".quote_smart($params['columns'][3]['search']['value'])." 23:59:59' ";
 			}
 		}
 		else
@@ -149,7 +192,7 @@
 		$sqlRec .= $where;
 	}
 //echo $sqlRec;exit;
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".$params['order'][0]['dir']."  OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".quote_smart($params['order'][0]['dir'])."  OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 //echo $sqlRec;
@@ -167,8 +210,8 @@
 
 		if($row['15'] != '')
 		{
-			$data_result['2'] = "<a data-fancybox href='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['15'] . ".jpg' title='" . $row['15'] . "'>
-				<img src='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['15'] . ".jpg' height='40' />
+			$data_result['2'] = "<a data-fancybox href='$azure_blob_path" . $row['15'] . ".jpg' title='" . $row['15'] . "'>
+				<img src='$azure_blob_path" . $row['15'] . ".jpg' height='40' />
 				</a>";
 		}
 		else
@@ -178,8 +221,8 @@
 
 		if($row['17'] != '')
 		{
-			$data_result['3'] = "<a data-fancybox href='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['17'] . ".jpg' title='" . $row['17'] . "'>
-				<img src='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['17'] . ".jpg' height='40' />
+			$data_result['3'] = "<a data-fancybox href='$azure_blob_path" . $row['17'] . ".jpg' title='" . $row['17'] . "'>
+				<img src='$azure_blob_path" . $row['17'] . ".jpg' height='40' />
 				</a>";
 		}
 		else
@@ -200,8 +243,8 @@
 		$data_result['13'] = $row['6'];
 		if($row['7'] != '')
 		{
-			$data_result['14'] = "<a data-fancybox href='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['7'] . ".jpg' title='" . $row['7'] . "'>
-				<img src='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['7'] . ".jpg' height='40' />
+			$data_result['14'] = "<a data-fancybox href='$azure_blob_path" . $row['7'] . ".jpg' title='" . $row['7'] . "'>
+				<img src='$azure_blob_path" . $row['7'] . ".jpg' height='40' />
 				</a>";
 		}
 		else
@@ -212,8 +255,8 @@
 		$data_result['15'] = $row['8'];
 		if($row['9'] != '')
 		{
-			$data_result['16'] = "<a data-fancybox href='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['9'] . ".jpg' title='" . $row['9'] . "'>
-				<img src='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['9'] . ".jpg' height='40' />
+			$data_result['16'] = "<a data-fancybox href='$azure_blob_path" . $row['9'] . ".jpg' title='" . $row['9'] . "'>
+				<img src='$azure_blob_path" . $row['9'] . ".jpg' height='40' />
 				</a>";
 		}
 		else
@@ -224,8 +267,8 @@
 		$data_result['17'] = $row['10'];
 		if($row['11'] != '')
 		{
-			$data_result['18'] = "<a data-fancybox href='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['11'] . ".jpg' title='" . $row['11'] . "'>
-				<img src='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['11'] . ".jpg' height='40' />
+			$data_result['18'] = "<a data-fancybox href='$azure_blob_path" . $row['11'] . ".jpg' title='" . $row['11'] . "'>
+				<img src='$azure_blob_path" . $row['11'] . ".jpg' height='40' />
 				</a>";
 		}
 		else
@@ -236,8 +279,8 @@
 		$data_result['19'] = $row['12'];
 		if($row['13'] != '')
 		{
-			$data_result['20'] = "<a data-fancybox href='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['13'] . ".jpg' title='" . $row['13'] . "'>
-				<img src='https://ihsavstorage.blob.core.windows.net/fileserverdata/" . $row['13'] . ".jpg' height='40' />
+			$data_result['20'] = "<a data-fancybox href='$azure_blob_path" . $row['13'] . ".jpg' title='" . $row['13'] . "'>
+				<img src='$azure_blob_path" . $row['13'] . ".jpg' height='40' />
 				</a>";
 		}
 		else
@@ -271,13 +314,15 @@
 		{
 			$data_result['32'] = "Rejected";
 		}
-		else if($row['26']=='0')
+		else
 		{
 			$data_result['32'] = "";
 		}
 
 		$data_result['33'] = $row['27'];
 		$data_result['34'] = $row['28'];
+
+		$approvedtype = '';
 		if($row['26']=='0' && $row['30']=='2' && ($row['32']!='' || $row['32']!= null))
 		{
 			$approvedtype = 'Manual';
@@ -300,8 +345,14 @@
 		}
 		else if(($row['32']=='' || $row['32']== null) && $row['26']!='1')
 		{
-			$data_result['37'] =  "<a class='btn btn-success btn-sm approve' href='items-pending-verification-helper.php?type=approve&visitinfoid=" . $row['0'] . "' value='".$row['0']."'>Approve</a>";
-			$data_result['38'] =  "<a class='btn btn-danger btn-sm reject' href='item_pending_reject.php?visitinfoid=".$row['0']."' target='_blank'>Reject</a>";
+			$item_id = $row['0'];
+			//$data_result['37'] =  "<a class='btn btn-success btn-sm approve' href='items-pending-verification-helper.php?type=approve&visitinfoid=" . $row['0'] . "' value='".$row['0']."'>Approve</a>";
+			//$data_result['38'] =  "<a class='btn btn-danger btn-sm reject' href='item_pending_reject.php?visitinfoid=".$row['0']."' target='_blank'>Reject</a>";
+
+			//Approved button
+			$data_result['37'] =  "<button class='btn btn-success btn-sm'>Approve</button><p class='approve_status_$item_id'></p>";
+			//Reject button
+			$data_result['38'] =  "<button class='btn btn-danger btn-sm'>Reject</button><p class='reject_status_$item_id'></p>";
 		}
 		else if(($row['32']=='' || $row['32']== null) && $row['26']=='1')
 		{
@@ -310,6 +361,13 @@
 		}
 		
 		$data_result['39'] =  $row['38'];
+		
+		if ($_SESSION['superadmin'] == 1)
+		{
+			$data_result['40'] = "<center><a class='edit_status_$item_id' style='cursor: pointer;' data-toggle='modal' data-target='#exampleModal' >
+						<i class='far fa-edit'></i> </a>
+						</center>";
+		}
 				
 		$data[] = $data_result;
 	}	

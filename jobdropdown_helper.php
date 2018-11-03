@@ -1,22 +1,53 @@
 <?php 
 session_start();
-error_reporting(0);
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
-else
+
+//echo "csrf post: " . $_POST['csrf_token']."<br/>";
+//echo "csrf session: " . $_SESSION['csrf_token']."<br/>";
+
+if (isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) 
 {
 	include 'php/config.php';
 	date_default_timezone_set('Asia/Calcutta');
 
 	$info=null;
-	$task = $_POST['task'];
+	$task = quote_smart($_POST['task']);
+
 	if($task=='add_new_terms')
 	{
-		$jobinfoid = $_POST['jobinfoid'];
-		$term_val1_data = $_POST['term_val1'];
-		$term_val2_data = $_POST['term_val2'];
+		$jobinfoid = quote_smart($_POST['jobinfoid']);
+		if (!is_numeric($jobinfoid))
+		{
+			echo "ERROR : Invalid parameter value";
+			exit;
+		}
+
+		$term_val1_data = quote_smart($_POST['term_val1']);
+		$term_val2_data = quote_smart($_POST['term_val2']);
 		
 		$term_val1 = $term_val1_data;
 		$term_val2 = $term_val2_data;
@@ -103,9 +134,21 @@ else
 	else
 	if($task == 'update_term')
 	{
-		$jobdropdownid = $_POST['jobdropdownid'];
-		$new_term_val = $_POST['new_term_val'];
-		$indx = $_POST['indx'];
+		$jobdropdownid = quote_smart($_POST['jobdropdownid']);
+		if (!is_numeric($jobdropdownid))
+		{
+			echo "ERROR : Invalid parameter value";
+			exit;
+		}
+
+		$new_term_val = quote_smart($_POST['new_term_val']);
+		$indx = quote_smart($_POST['indx']);
+		if (!is_numeric($indx))
+		{
+			echo "ERROR : Invalid parameter value";
+			exit;
+		}
+
 		$conn = pg_connect($conn_string);
 
 		if(!$conn)
@@ -131,6 +174,13 @@ else
 		echo $info;
 		pg_close($conn);
 	}
-	
+	else
+	{
+		echo "Error: Unknown operation";
+	}
+}
+else
+{
+	echo "Invalid Security Token";
 }
 ?>

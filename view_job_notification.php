@@ -3,11 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -198,7 +200,7 @@ $('.job_notification_add').click(function(){                        //job_notifi
     $.ajax({
         type : 'post',
         url : 'notification_helper.php',
-        data : 'jobinfoid='+jobinfoid+'&job_notify_sub='+job_notify_sub+'&job_notify_message='+job_notify_message+'&job_notify_url='+job_notify_url+'&task='+task,
+        data : 'jobinfoid='+jobinfoid+'&job_notify_sub='+job_notify_sub+'&job_notify_message='+job_notify_message+'&job_notify_url='+job_notify_url+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
         success : function(res)
         {
             $(this).attr("disabled",false);

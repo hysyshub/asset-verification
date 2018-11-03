@@ -1,13 +1,35 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
-    header('Location: login.php');
+	header('Location: login.php');
+	exit;
 }
 else
 {
-    error_reporting(0);
-    date_default_timezone_set('Asia/Calcutta');
+	//error_reporting(0);
+	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -24,7 +46,7 @@ else
 
     /* CSS talk bubble */
     .talk-bubble {
-        margin: 40px;
+        margin: 5px;
       display: inline-block;
       position: relative;
         width: 200px;
@@ -278,16 +300,15 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
 
-$conn = pg_connect($conn_string);
+$querymasterid = quote_smart($_GET['querymasterid']);
 
-if(!$conn)
+if (!is_numeric($querymasterid))
 {
-    echo "ERROR : Unable to open database";
-    exit;
+	echo "ERROR : Invalid parameter value";
+	exit;
 }
-$querymasterid = $_GET['querymasterid'];
+
 $query = "SELECT * FROM queryalloc WHERE querymasterid='$querymasterid' ORDER BY textedon DESC";
 $result = pg_query($conn, $query);
 
@@ -345,7 +366,7 @@ if (!$result)
             $row_sql3 = pg_fetch_array($result_sql3);
             $admin_name = $row_sql3['firstname']." ".$row_sql3['lastname'];
         ?>
-        <h3>Helpdesk info</h3>
+        <h3>Helpdesk Query Thread</h3>
             <!--   reply to query -->
             <?php
                 if($laststatus!='2')
@@ -354,17 +375,16 @@ if (!$result)
             ?>
         
             <form>
-                <b class="text-center">Reply Here</b>
                 <input type='hidden' class='querymasterid' value='<?php echo $querymasterid;?>'>
                 <input type='hidden' class='userid' value='<?php echo $userid;?>'>
                 <div class="form-group">
                     <table>
                         <tr>
                             <td style="width:330px;">
-                                <input type="text" class="form-control form-control-sm message round" name="message" placeholder="Message for reply" id="message" > 
+                                <input type="text" class="form-control form-control-sm message round" name="message" placeholder="Reply Message" id="message" > 
                             </td>
                             <td>
-                                &nbsp;&nbsp;&nbsp;Close query: <input type='checkbox' class='laststatus' style='width:20px;'/>
+                                &nbsp;&nbsp;&nbsp;Close Query? <input type='checkbox' class='laststatus' style='width:20px;'/>
                             </td>
                             <td>
                                 <img src="images/send_message.png" style="width:60px;height:60px;" class="btn_submit">
@@ -376,7 +396,6 @@ if (!$result)
                     <strong>Success!</strong> Reply sent successfully.
                 </div>
             </form>
-            <hr/>
             <?php
                 }
             ?>
@@ -387,9 +406,9 @@ if (!$result)
                 if($row['usertype']=='0')
                 {
                 echo "<div class='talk-bubble tri-right round talktext' style='width:75%;border:1px solid red;float:left;'>
-                    <p style='color:#673ab7;align:left;'>User : ".$username." wrotes:</p>
-                    <p style='color:red;align:left;'>Message : ".$row['message']."</p>
-                    <span>on : ".$row['textedon']."</span>
+                    <p style='color:red;align:left;'>".$username." [User]</p>
+                    <p style='color:#000;align:left;'>".$row['message']."</p>
+                    <p style='text-align:left;'>".date('d-M-Y h:i:s A', strtotime($row['textedon']))."</p>
                 </div>";
 
                 }
@@ -397,9 +416,9 @@ if (!$result)
                 if($row['usertype']=='1')
                 {
                 echo "<div class='talk-bubble tri-right round talktext'  style='width:75%;border:1px solid blue;float:right;'>
-                        <p style='color:#673ab7;text-align:right;'><u>Admin:</u> ".$admin_name." reply</p>
-                        <p style='color:blue;text-align:right;'><u>Message:</u> ".$row['message']."</p>
-                        <p style='text-align:right;'>on: ".$row['textedon']."</p>
+                        <p style='color:blue;text-align:right;'>".$admin_name." [Admin]</p>
+                        <p style='color:#000;text-align:right;'>".$row['message']."</p>
+                        <p style='text-align:right;'>".date('d-M-Y h:i:s A', strtotime($row['textedon']))."</p>
                     </div>";
                 }
             }

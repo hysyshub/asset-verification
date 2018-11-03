@@ -1,13 +1,35 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
-    header('Location: login.php');
+	header('Location: login.php');
+	exit;
 }
 else
 {
-    error_reporting(0);
-    date_default_timezone_set('Asia/Calcutta');
+	//error_reporting(0);
+	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +41,6 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
-
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-    echo "ERROR : Unable to open database";
-    exit;
-}
 
 ?>
 <!-- Page Content start -->

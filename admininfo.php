@@ -3,31 +3,46 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
 <head>
 <title>Admins</title>
 
+<style>
+.btn-default {
+    color: #333;
+    background-color: #fff;
+    border-color: #ccc !important;
+}
+
+.btn-default:hover, .btn-default:focus, .btn-default:active, .btn-default.active {
+    color: #333;
+    background-color: #e6e6e6;
+    border-color: #adadad;
+}
+
+.btn:active, .btn.active {
+    background-image: none;
+    outline: 0;
+    -webkit-box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+    box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+}
+
+</style>
+
 </head>
 <body>
 <?php
 
 include 'header.php';
-include 'php/config.php';
-
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 
 ?>
 <!-- Page Content start -->
@@ -75,6 +90,7 @@ if(!$conn)
 						<th>Email-ID</th>
 						<th>Address</th>
 						<th>Contact</th>
+						<th>Super Admin</th>
 						<?php
 							if($superadmin=='1')        // if admin is superadmin
 						  	{
@@ -126,9 +142,8 @@ if(!$conn)
 			            Contact Number: <input type="text" class="form-control form-control-sm contactnumber" name="contactnumber" placeholder="First Name" id="contactnumber" >   
 			        </div>
 			        <div class="form-group">
-			        	Is Super Admin:
-                      	<input type='checkbox' data-toggle='toggle' name='superadmin' class='superadmin form-control  form-control-sm' id='superadmin' data-on='On' data-off='Off'>
-                      	
+			        	Is Super Admin?
+                      			<input type='checkbox' data-toggle='toggle' name='superadmin' class='superadmin' id='superadmin' data-on='On' data-off='Off' data-size="small">                      	
 			        </div>				        
 			        <div class="form-group status">
 			                                
@@ -178,6 +193,14 @@ $(document).ready(function(){
 		var address = $('.address').val();
 		var contactnumber = $('.contactnumber').val();
 		var superadmin = $(".superadmin").is(":checked");
+		if(superadmin==true)
+		{
+			superadmin='1';
+		}
+		else
+		{
+			superadmin='0';
+		}
 		var task = 'add_admin_info';
 		if(firstname=='' || firstname==null)
 		{
@@ -202,7 +225,7 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'addition_helper.php',
-				data : 'firstname='+firstname+'&lastname='+lastname+'&address='+address+'&contactnumber='+contactnumber+'&emailid='+emailid+'&superadmin='+superadmin+'&task='+task,
+				data : 'firstname='+firstname+'&lastname='+lastname+'&address='+address+'&contactnumber='+contactnumber+'&emailid='+emailid+'&superadmin='+superadmin+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					$('.loading_img').hide();

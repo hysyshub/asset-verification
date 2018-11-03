@@ -1,21 +1,52 @@
 <?php 
-    session_start();
+session_start();
+if(isset($_SESSION['user']) && $_SESSION['user'] != '')
+{
+	header('Location: index.php');
+	exit;
+}
+
     require_once 'php/config.php';
     include 'php/send_mail.php';
-    error_reporting(0);
+    //error_reporting(0);
     date_default_timezone_set('Asia/Calcutta');
 
-    $errorMessage = '';
-	$successMessage = '';
-    if(isset($_POST['submit_btn']))       //submit_btn click
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
     {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
 
-        $emailid = trim($_POST['emailid']);
-        $emailid = strip_tags($emailid);
-        $emailid = htmlspecialchars($emailid);
+    $errorMessage = '';
+    $successMessage = '';
+    //if(isset($_POST['submit_btn']))       //submit_btn click
+    //{
+    if(isset($_POST['g-recaptcha-response']) && !empty($_POST['g-recaptcha-response']))
+    {
+	//your site secret key
+	$secret = '6Lcqo2IUAAAAABrY-AIX_EADg5N1WOrR53QFUr0G';
+	//get verify response data
+	$verifyResponse = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret='.$secret.'&response='.$_POST['g-recaptcha-response']);
+	$responseData = json_decode($verifyResponse);
+	if($responseData->success)
+	{
 
-        $captcha = $_POST['vercode'];
-        $conn = pg_connect($conn_string);
+        $emailid = quote_smart($_POST['emailid']);
+
+	$conn = pg_connect($conn_string);
 
         if(!$conn)
         {
@@ -36,13 +67,6 @@
 
         if( $count == 1) 
         {
-            if (($_POST['vercode'] != $_SESSION['vercode']) || $_SESSION['vercode']=='')  
-            {
-                $errorMessage = 'Invalid captcha';
-                //echo "<script> return false;</script>";
-            }
-            else
-            {
             	$firstname = $row['firstname'];
             	$lastname = $row['lastname'];
             	$salt = "abchefghjkmnpqrstuvwxyz0123456789";
@@ -57,7 +81,7 @@
     		      	}
       			    $email_pass = substr(trim(date('m')), -1)."T".$pass;    //random password
 
-                //$tmp_password = hash('sha256',$email_pass);     // random password with sha256
+                	    //$tmp_password = hash('sha256',$email_pass);     // random password with sha256
       			    $tmp_password = hash('sha512',$email_pass);     // random password with sha512
 
       			    $todaytime = date('Y-m-d H:i:s');
@@ -71,22 +95,22 @@
       		        }
       		        else
       		        {
-      		        	$subject = "Forgot Password - AVAPP Web-Interface";
+      		        	$subject = "Your temporary password for AVApp Web Login";
       						
-      					$message = "Hi, $firstname $lastname.<br/><br/>
-      						Your temporary password for AVAPP Web interface <br/>
-      						Please use following details to login. <br/><br/>";
+      					$message = "Hi $firstname $lastname,<br/><br/>
+      						Here is your temporary password for AVApp Web Login.<br/><br/>
+      						Please use the following details to login. <br/><br/>";
       					$message .= "<table border='1' cellpadding='5' cellspacing='0'>";
-      					$message .="<tr><th colspan='9' align='center' bgcolor='#d9e6f0'>AVAPP Login Details</th></tr>";
-      					$message .="<tr><th align='left'>Email</th><td colspan='8'>".$emailid."</td></tr>";
+      					$message .="<tr><th colspan='9' align='center' bgcolor='#d9e6f0'>AVApp Login Details</th></tr>";
+      					$message .="<tr><th align='left'>Email Id</th><td colspan='8'>".$emailid."</td></tr>";
       					$message .="<tr><th align='left'>Temporary Password</th><td colspan='8'>".$email_pass."</td></tr>";
-      					$message .="<tr><th align='left'>Expired on</th><td colspan='8'>".$tmp_pass_validity."</td></tr>";
+      					$message .="<tr><th align='left'>Expiry on</th><td colspan='8'>".$tmp_pass_validity."</td></tr>";
       					$message .= "<tr><td colspan='9'>
       						Important: This password is valid for only 60 minutes.<br/>
-      						Sign-in using this temporary password & then change your password.<br/>
-      						Do not share this details with anyone.  <br/> <br/><br/>
-      						Thanks, <br/> The Asset Verification Team.<br/><br/><br/>
-      						<b style='background-color:yellow;'><u>NOTE: This is system generated mail,Please do not reply to this mail.</u></b></td></tr></table>";
+      						Login using this temporary password & change your password immediately.<br/>
+      						Do not share this with anyone.<br/><br/>
+						Thanks,<br/>Asset Verification Team.<br/><br/>
+      						<i>Note: This is a system generated email. Please do not reply to this email.</i></td></tr></table>";
       					$mailto = $emailid;
       					$mailtoname = $firstname.' '.$lastname;
       					
@@ -94,22 +118,23 @@
 					
       					if($info=='success')
       					{
-      						$successMessage = "Password successfully send to '$emailid'.";
+      						$successMessage = "Temporary password sent to Email Id if registered";
       					}
-      	                else
-      	                if($info=='danger')
+      	                		else if($info=='danger')
       					{
       						$errorMessage = 'Error sending email';
       					}
 		          }
-			    
-            }
-            
         } 
         else 
         {
-            $errorMessage = 'Email-id does not exists.<br/> Please provide correct email-id';
+            $errorMessage = 'Temporary password sent to Email Id if registered';
         }
+	}
+	else
+	{
+		$errorMessage = 'reCAPTCHA verification failed, please try again.';
+	}
     }
 ?>
 
@@ -119,19 +144,16 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="csrf-param" content="authenticity_token" />
-<meta name="csrf-token" content="XvBNaxjvfYAAmfnt75yYa2ftkG02wFSqA2aslOUmzZ2aLSGMNPdS0fad9goHPZVtVCMXXI+DBZ9Dd1viOk1PEQ==" />
 <title>Forgot Password</title>
 <link rel="stylesheet" media="screen" href="css/fullpage.css" />
 
-  <link href='https://fonts.googleapis.com/css?family=Lato:400,900,400italic,700italic' rel='stylesheet'>
+  <!--link href='https://fonts.googleapis.com/css?family=Lato:400,900,400italic,700italic' rel='stylesheet'-->
 
-    <script async src="//www.google-analytics.com/analytics.js"></script>
     <!-- jQuery-CDN -->
-    <script src="//code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="js/jquery-3.3.1.min.js"></script>
 
     <style>
-      @import url('https://fonts.googleapis.com/css?family=Poppins');
+      /*@import url('https://fonts.googleapis.com/css?family=Poppins');*/
 
       /* BASIC */
 
@@ -180,7 +202,7 @@
         border-radius: 10px 10px 10px 10px;
         background: #fff;
         padding: 30px;
-        width: 70%;
+	width: 100%;
         max-width: 400px;
         position: relative;
         padding: 0px;
@@ -216,7 +238,7 @@
 
       /* FORM TYPOGRAPHY*/
 
-      input[type=button], input[type=submit], input[type=reset]  {
+      input[type=button], input[type=submit], input[type=reset], button  {
         background-color: #454df3;
         border: none;
         color: white;
@@ -238,11 +260,11 @@
         transition: all 0.3s ease-in-out;
       }
 
-      input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover  {
+      input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover, button:hover  {
         background-color: #39ace7;
       }
 
-      input[type=button]:active, input[type=submit]:active, input[type=reset]:active  {
+      input[type=button]:active, input[type=submit]:active, input[type=reset]:active, button:active  {
         -moz-transform: scale(0.95);
         -webkit-transform: scale(0.95);
         -o-transform: scale(0.95);
@@ -435,6 +457,35 @@
         box-sizing: border-box;
       }
     </style>
+
+<script>
+function onSubmit(token)
+{
+     document.getElementById("frmLogin").submit();
+}
+
+function validate(event) 
+{
+    event.preventDefault();
+    if (!document.getElementById('login').value)
+    {
+      	alert("Please enter your Email Id!");
+    }
+    else 
+    {
+      	grecaptcha.execute();
+    }
+}
+
+function onload() 
+{
+    var element = document.getElementById('recaptcha-submit');
+    element.onclick = validate;
+}
+</script>
+
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
 </head>
 <body>
     <div class="wrapper fadeInDown">
@@ -448,13 +499,21 @@
             </div>
 
             <!-- Login Form -->
-            <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>" autocomplete="off">
+            <form method="post" name="frmLogin" id="frmLogin" action="<?php echo $_SERVER['PHP_SELF']; ?>" autocomplete="off">
                 <input type="text" id="login" class="fadeIn second" name="emailid" autocomplete="off" value="<?php echo $emailid?>"  placeholder="Registered Email Id" required />
                 
-		<p>
+		<!--p>
 			<img src="php/captcha.php" class="fadeIn fourth" style="vertical-align: middle;">
 			<input type="text" id="vercode" class="fadeIn fourth" style="max-width: 250px;" name="vercode" autocomplete="off" value="<?php echo $captcha?>" placeholder="Enter Captcha" required />
-                </p>
+		</p-->
+		<div align='center' style='margin: 5px;'
+			id='recaptcha' 
+			class="g-recaptcha"
+			data-sitekey="6Lcqo2IUAAAAAMac1Ev32prXPIvLdAcI_8UpM6Cn"
+			data-callback="onSubmit"
+			data-size="invisible"
+			data-badge="inline">
+		</div>
                 <?php
 					if ($errorMessage != '')
 					{
@@ -469,7 +528,9 @@
 						echo "</div>";
 					}
 				?>
-                <input type="submit" class="fadeIn fifth btn btn-info submit_btn" name='submit_btn' value="Submit">
+
+		<button name="recaptcha-submit" id="recaptcha-submit" class="fadeIn fifth btn btn-info">Submit</button>
+	        <script>onload();</script>
             </form>
             <div class="form-group">
                 <center><img src="images/loading.gif" class='img-responsive loading_img' id='loading_img' style='widht:100px;height:100px;display:none;'/></center>

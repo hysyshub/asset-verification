@@ -3,11 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -39,6 +41,9 @@ include 'header.php';
                         <ul class="nav navbar-nav ml-auto">
                         	<li class="nav-item">
                                 <a href="#add_new_circle_info" data-toggle='modal' style="color:blue;text-align:right;" class="nav-link">Add New Circle</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="import-circle-info.php" style="color:blue;text-align:right;" class="nav-link">Import Circles</a>
                             </li>
                         </ul>
                     </div>
@@ -141,7 +146,7 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'addition_helper.php',
-				data : 'circlecode='+circlecode+'&circlevalue='+circlevalue+'&task='+task,
+				data : 'circlecode='+circlecode+'&circlevalue='+circlevalue+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					if(res == 'duplicate')
@@ -213,7 +218,7 @@ $(document).ready(function(){
 			$.ajax({
 			type : 'post',
 			url : 'updation_helper.php',
-			data : 'edit_circleinfoid='+edit_circleinfoid+'&edit_circlecode='+edit_circlecode+'&edit_circlevalue='+edit_circlevalue+'&task='+task,
+			data : 'edit_circleinfoid='+edit_circleinfoid+'&edit_circlecode='+edit_circlecode+'&edit_circlevalue='+edit_circlevalue+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 			success : function(res)
 			{
 				if(res == 'success')

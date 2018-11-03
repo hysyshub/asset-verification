@@ -1,13 +1,35 @@
 <?php 
 session_start();
-if($_SESSION['user']=='')
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='' || $_SESSION['superadmin'] != 1)
 {
     header('Location: login.php');
+    exit;
 }
 else
 {
-    error_reporting(0);
-    date_default_timezone_set('Asia/Calcutta');
+	//error_reporting(0);
+	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +41,7 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
 
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-    echo "ERROR : Unable to open database";
-    exit;
-}
 ?>
 <!-- Page Content start -->
         <div id="content" style="overflow: auto;">
@@ -61,7 +75,13 @@ if(!$conn)
             <div  class="col-md-6">
         <h3>Change Admin Password</h3>
             <?php
-                $admininfoid = $_GET['admininfoid'];
+			$admininfoid = quote_smart($_GET['admininfoid']);
+
+			if (!is_numeric($admininfoid))
+			{
+				echo "ERROR : Invalid parameter value";
+				exit;
+			}
             ?>
             <form>
                  <input type='hidden' class='adminId' value="<?php echo $admininfoid; ?>">
@@ -137,7 +157,7 @@ $(document).ready(function(){
         $.ajax({
             type : 'post',
             url : 'updation_helper.php',
-            data : 'admininfoid='+admininfoid+'&new_password='+new_password+'&confirm_password='+confirm_password+'&task='+task,
+            data : 'admininfoid='+admininfoid+'&new_password='+new_password+'&confirm_password='+confirm_password+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
             success : function(res)
             {
                 $('.loading_img').hide();

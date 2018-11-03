@@ -14,49 +14,34 @@ else
 	$successMessage = '';
 	if (isset($_POST['submit'])) 
 	{
-		$i=0; //so we skip first row
-		$file_ext = null;
+	    $i=0; //so we skip first row
+	    $file_ext = null;
 
-		$filename = $_FILES['fileToUpload']['name'];
-		if(empty($filename))
-		{
-			$errorMessage = 'Please select file to upload';        //error if file not selected
-		}	
-		else
-		{
-			$file_ext=strtolower(end(explode('.',$_FILES['fileToUpload']['name'])));
-
-			if($file_ext!='csv')
-			{
-				$errorMessage = "Only csv files can be uploaded! Download sample file for your refrence!<br/>
-					To download sample file <a href='sample_csv/6_sample_jobs [jobinfo].csv' style='color:blue;'> Click here</a>";
-			}
-			else
-			{
-				$handle = fopen($_FILES['fileToUpload']['tmp_name'], "r");
+	    $filename = $_FILES['fileToUpload']['name'];
+	    if(empty($filename))
+	    {
+	    	$errorMessage = 'Please select file to upload';        //error if file not selected
+	    }	
+	    else
+	    {
+	    	$file_ext=strtolower(end(explode('.',$_FILES['fileToUpload']['name'])));
+	    	
+	    	if($file_ext!='csv')
+	    	{
+	    		$errorMessage = "Only csv files can be uploaded! Download sample file for your refrence!<br/>
+	    			To download sample file <a href='sample_csv/1_sample_circles [circleinfo].csv' style='color:blue;'> Click here</a>";
+	    	}
+	    	else
+	    	{
+	    		$handle = fopen($_FILES['fileToUpload']['tmp_name'], "r");
 
 				$i=0;
 				while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) 
 				{
-					$i++;
-					if($i==1) continue;
-					if($data[2]=='')
-					{
-						$data[2]='NULL';
-					}
-					if($data[4]=='')
-					{
-						$data[4]='NULL';
-					}
-					if($data[8]=='')
-					{
-						$data[8]='NULL';
-					}
-					if($data[9]=='')
-					{
-						$data[9]='NULL';
-					}
-					$sql = "INSERT INTO jobinfo(jobinfoid,jobno,circleinfoid,locationid,userid,accurdistance,accurdistanceunit,tokenid,starttime,endtime,status,errorflg,vendorinfoid) VALUES($data[0],'$data[1]',$data[2],'$data[3]',$data[4],$data[5],'$data[6]','$data[7]',$data[8],$data[9],$data[10],$data[11],$data[12])";
+				    $i++;
+				    if($i==1) continue;
+
+				    $sql = "INSERT INTO circleinfo(circleinfoid,circlecode,circlevalue) VALUES($data[0],'$data[1]','$data[2]')";
 					$result = pg_query($conn, $sql);
 
 					if (!$result)
@@ -69,15 +54,19 @@ else
 					}
 					//break;
 				}
-				fclose($handle);
-				pg_close($conn);
-			}
-		}
+			    fclose($handle);
+			    pg_close($conn);
+	    	}
+	    	
+	    }
+	    
 	}
+	
+
 ?>
 <html>
 <head>
-<title>Upload new jobs</title>
+<title>Upload New Circles</title>
 
 </head>
 <body>
@@ -102,13 +91,7 @@ include 'header.php';
                     <div class="collapse navbar-collapse pull-right" id="navbarSupportedContent">
                         <ul class="nav navbar-nav ml-auto">
                         	<li class="nav-item">
-                                <a href="jobinfo.php"style="color:blue;text-align:right;"  class="nav-link">Jobs List</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="job-data-fields.php?jobinfoid=0"style="color:blue;text-align:right;"  class="nav-link">Job Data Fields</a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="jobdropdown.php?jobinfoid=0" style="color:blue;text-align:right;"  class="nav-link">Job Dropdown Values</a>
+                                <a href="circleinfo.php" style="color:blue;text-align:right;" class="nav-link">Circle List</a>
                             </li>
                         </ul>
                     </div>
@@ -118,18 +101,17 @@ include 'header.php';
 			<div  class="col-md-3">
 			</div>
 			<div  class="col-md-6">
-		<h3>Import jobs</h3>
+		<h3>Import Circles</h3>
 		<?php
-			$sql = "SELECT SUM(last_value+1) FROM seqjobinfo";
+			$sql = "SELECT SUM(last_value+1) FROM seqcircleinfo";
 			$result = pg_query($conn, $sql);
-			$row_next_job_id = pg_fetch_array($result);
-			$next_job_id = $row_next_job_id[0];
+			$row_next_circleinfo_id = pg_fetch_array($result);
+			$next_circleinfo_id = $row_next_circleinfo_id[0];
 		?>	
 			<form  method="post" enctype="multipart/form-data" action="<?php echo $_SERVER['PHP_SELF'];?>">
 		    
-			    For sample csv file <a href='sample_csv/6_sample_jobs [jobinfo].csv' style='color:red;'>click here</a><br>
-			    Please start <b>jobinfoid</b> from <strong style="color:red;"><?php echo $next_job_id;?></strong><br/>
-			    <p style="background-color:yellow;color:black;"><strong>Note: </strong>Please use <b style="color:red;">'0' for Strict_location_accuracy = 'No restriction for accuracy'</b> <br/>& use <b style="color:red;">'1' for Strict_location_accuracy = 'Restriction for accuracy'</b></p> 
+			    For sample csv file <a href='sample_csv/1_sample_circles [circleinfo].csv' style='color:red;'>click here</a><br>
+			    Please start <b>circleinfoid</b> from <strong style="color:red;"><?php echo $next_circleinfo_id;?></strong>
 			    <br/><br/>
 			    <table class='table table-bordered table-responsive table-condensed table-scroll table-fixed-header'  cellspacing='0' cellspacing='0' width='100%'>
 			    	<tr>

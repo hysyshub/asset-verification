@@ -3,11 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>

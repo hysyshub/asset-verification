@@ -1,24 +1,38 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
-    if(isset($_POST['export_data']))
-    {
-        include 'php/config.php';
-
-        $conn = pg_connect($conn_string);
-
-        if(!$conn)
-        {
-            echo "ERROR : Unable to open database";
-            exit;
-        }
+	include 'php/sessioncheck.php';
+	
+	if(isset($_POST['export_data']))
+    	{
 
         $sql = "SELECT * FROM (
           SELECT ROW_NUMBER() OVER (PARTITION BY t.locationid ORDER BY barcodeinfoid) AS r, t.*, L.sitecode, L.sitename
@@ -36,8 +50,16 @@ else
             $delimiter = ",";
             $filename = "Barcode_inventory_master_" . date('Y-m-d') . ".csv";
             
-            //create a file pointer
-            $f = fopen('php://memory', 'w');
+	    //set headers to download file rather than displayed
+	    header('Content-Type: text/csv');
+	    header('Content-Disposition: attachment; filename="' . $filename . '";');
+
+	    // do not cache the file	
+	    header('Pragma: no-cache');
+	    header('Expires: 0');
+
+	    //create a file pointer
+	    $f = fopen('php://output', 'w');
             
             //set CSV column headers
             $fields = array('Site Code', 'Site Name', 'Barcode Id', 'Barcode Value');
@@ -49,21 +71,6 @@ else
                 $lineData = array(''.$row['sitecode'].'', ''.$row['sitename'].'', ''.$row['barcodeinfoid'].'', ''.$row['barcode'].'');
                 fputcsv($f, $lineData, $delimiter);
             }
-
-            //move back to beginning of file
-            fseek($f, 0);
-            
-            //set headers to download file rather than displayed
-            header("Content-Type: text/csv");
-            header('Content-Disposition: attachment; filename="' . $filename . '";');
-            header('Content-Description: File Transfer');
-            header('Content-Transfer-Encoding: binary');
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-            header('Pragma: public');
-            
-            //output all remaining data on a file pointer
-            fpassthru($f);
         }
         exit;
     }

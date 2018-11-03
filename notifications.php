@@ -3,35 +3,24 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
 <head>
 <title>Notifications</title>
-<script>
-
-</script>
-
-
+<script src='https://cloud.tinymce.com/stable/tinymce.min.js'></script>
 </head>
 <body>
 <?php
 
 include 'header.php';
-include 'php/config.php';
-echo "<script src='https://cloud.tinymce.com/stable/tinymce.min.js'></script>";
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 
 $query = "SELECT * FROM usernotifications";
 $result = pg_query($conn, $query);
@@ -312,7 +301,7 @@ $('.btn_update_notification').click(function(){
 	$.ajax({
 		type : 'post',
 		url : 'updation_helper.php',
-		data : 'notification='+notification+'&task='+task,
+		data : 'notification='+notification+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 		success : function(res)
 		{
 			if(res=='db_conn_error')
@@ -363,7 +352,7 @@ $('.gen_notification_add').click(function(){
     $.ajax({
         type : 'post',
         url : 'notification_helper.php',
-        data : 'gen_notify_sub='+gen_notify_sub+'&gen_notify_message='+gen_notify_message+'&gen_notify_url='+gen_notify_url+'&userid='+userid+'&task='+task,
+        data : 'gen_notify_sub='+gen_notify_sub+'&gen_notify_message='+gen_notify_message+'&gen_notify_url='+gen_notify_url+'&userid='+userid+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
         success : function(res)
         {
             if(res=='db_conn_error')
@@ -423,7 +412,7 @@ $('.job_notification_add').click(function(){
     $.ajax({
         type : 'post',
         url : 'notification_helper.php',
-        data : 'jobinfoid='+jobinfoid+'&job_notify_sub='+job_notify_sub+'&job_notify_message='+job_notify_message+'&job_notify_url='+job_notify_url+'&task='+task,
+        data : 'jobinfoid='+jobinfoid+'&job_notify_sub='+job_notify_sub+'&job_notify_message='+job_notify_message+'&job_notify_url='+job_notify_url+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
         success : function(res)
         {
             if(res=='db_conn_error')

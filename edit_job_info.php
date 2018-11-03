@@ -1,33 +1,68 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
 <head>
-<title>Edit Job Info</title>
+<title>Edit Job</title>
+
+<style>
+.btn-default {
+    color: #333;
+    background-color: #fff;
+    border-color: #ccc !important;
+}
+
+.btn-default:hover, .btn-default:focus, .btn-default:active, .btn-default.active {
+    color: #333;
+    background-color: #e6e6e6;
+    border-color: #adadad;
+}
+
+.btn:active, .btn.active {
+    background-image: none;
+    outline: 0;
+    -webkit-box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+    box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+}
+
+</style>
 
 </head>
 <body>
 <?php
 
 include 'header.php';
-include 'php/config.php';
-
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 
 $query = "SELECT * FROM circleinfo ORDER BY circleinfoid";
 $result = pg_query($conn, $query);
@@ -42,10 +77,10 @@ if (!$result)
 <!-- Page Content start -->
         <div id="content">
 
-            <nav class="navbar navbar-expand-lg navbar-light bg-light" style='width:1100px'>
+            <nav class="navbar navbar-expand-lg navbar-light bg-light" style="width:100%">
                 <div class="container-fluid">
 
-                    <button type="button" id="sidebarCollapse" class="btn btn-info" style='background:#6a1b9a;'>
+                    <button type="button" id="sidebarCollapse" class="btn btn-info" style='background:#030dcf;'>
                         <i class="fas fa-align-left"></i>
                         
                     </button>
@@ -53,31 +88,27 @@ if (!$result)
                         <i class="fas fa-align-justify"></i>
                     </button>
 
-                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <div class="collapse navbar-collapse pull-right" id="navbarSupportedContent">
                         <ul class="nav navbar-nav ml-auto">
-                        	<li class="nav-item pull-left">
-                                <a href="jobinfo.php" style="color:blue;">Job Info</a>
-                            </li>&nbsp;&nbsp;| &nbsp;&nbsp;
-                            <li class="nav-item pull-left">
-                                <a href="visits.php"style="color:blue;">Job Data Fields</a>
-                            </li>&nbsp;&nbsp;| &nbsp;&nbsp;
-                            <li class="nav-item pull-left">
-                                <a  href="jobdropdown.php" style="color:blue;">Job Dropdown Values</a>
-                            </li>&nbsp;&nbsp;| &nbsp;&nbsp;
-                            <li class=" nav-item dropdown style="background:white;"">
-                            <a href="#" id="nbAcctDD" class="dropdown-toggle" data-toggle="dropdown"  style="background:transparent;color:black;">&nbsp;Hi&nbsp; <?php echo $_SESSION['user']; ?></a>
-                            <ul class="dropdown-menu pull-right">
-                                <li>
-                                    <a href="index.php"  class="user_event"><span class="glyphicon glyphicon-home"></span>&nbsp;Home</a>
-                                </li>
-                                <li>
-                                    <a href="admin-self-change-password.php"  class="user_event"><span class="glyphicon glyphicon-eye-open"></span>&nbsp;Change Password</a>
-                                </li>
-                                <li>
-                                    <a href="logout.php?logout" class="user_event"><span class="glyphicon glyphicon-off"></span>&nbsp;Sign Out</a>
-                                </li>
-                            </ul>
-                        </li>
+                        	<li class="nav-item">
+                                <a href="jobinfo.php" data-toggle='modal' style="color:blue;text-align:right;"  class="nav-link">Job Info</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="import-job-info.php"style="color:blue;text-align:right;"  class="nav-link">Import Jobs</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="job-data-fields.php?jobinfoid=0"style="color:blue;text-align:right;"  class="nav-link">Job Data Fields</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="import-job-data-fields.php"style="color:blue;text-align:right;"  class="nav-link">Import Job Data Fields</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="jobdropdown.php?jobinfoid=0" style="color:blue;text-align:right;"  class="nav-link">Job Dropdown Values</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="import-job-dropdown-fields.php"style="color:blue;text-align:right;"  class="nav-link">Import Job Dropdown Values</a>
+                            </li>
+                            
                         </ul>
                     </div>
                 </div>
@@ -86,17 +117,18 @@ if (!$result)
 			<div  class="col-md-3">
 			</div>
 			<div  class="col-md-6">
-		<h2>Edit Job Info</h2>
+		<h3>Edit Job</h3>
 			
-			<?php
-		$jobinfoid = $_GET['jobinfoid'];
-		$query = "SELECT J.jobinfoid, L.sitecode, L.locationid,L.sitename, J.jobno, J.accurdistance, J.accurdistanceunit, J.errorflg, J.tokenid, J.status, U.userid,U.firstname, J.starttime, J.endtime, J.createdon, C.circleinfoid, C.circlevalue,V.vendorinfoid,V.vendorname
-	    	FROM jobinfo AS J 
-			INNER JOIN location AS L ON J.locationid=L.locationid 
-			LEFT JOIN userinfo AS U ON J.userid=U.userid
-			LEFT JOIN circleinfo AS C ON J.circleinfoid=C.circleinfoid
-			LEFT JOIN vendorinfo AS V ON J.vendorinfoid=V.vendorinfoid
-		 	WHERE J.jobinfoid='$jobinfoid'";
+		<?php
+		$jobinfoid = quote_smart($_GET['jobinfoid']);
+
+		if (!is_numeric($jobinfoid))
+		{
+			echo "ERROR : Invalid parameter value";
+			exit;
+		}
+
+		$query = "SELECT * FROM jobinfo WHERE jobinfoid='$jobinfoid'";
 		$result = pg_query($conn, $query);
 		
 		if (!$result)
@@ -110,112 +142,67 @@ if (!$result)
 			exit;
 		}
 		$row = pg_fetch_array($result);
+
+		if ($row['status'] != 0)
+		{
+			echo "ERROR: Job already started or finished.";
+			exit;
+		}
 	?>
 
 		<div class="col-md-12">
 		    <form>
 		    <input type='hidden' class='jobinfoid' value="<?php echo $row['jobinfoid'];?>">
 		        <div class="form-group">
-		            Job Number: <input type="text" class="form-control jobno" name="jobno" value="<?php echo $row['jobno'];?>" >   
-		        </div> 
-		        <div class="form-group">
-		            Circle: 
-		            <?php 
-		            	if($row['status']=='0')
-		            	{
-		            		echo "<select class='form-control circleinfoid'>";
-		            	}
-		            	else
-		            	{
-		            		echo "<select class='form-control circleinfoid' disabled>";
-		            	}
-		            ?>
-		            
-		            <option selected value="<?php echo $row['circleinfoid'];?>"><?php echo $row['circlevalue'];?></option>
-		            <option value='0'>-- Select Circle --</option>
-		            <?php
-		            	$sql_circle_info = "SELECT * FROM circleinfo ORDER BY circleinfoid";
-		            	$circle_info_result = pg_query($conn, $sql_circle_info);
-		            	if(pg_num_rows($circle_info_result)>0)
-		            	{
-		            		while($row_circle_info = pg_fetch_array($circle_info_result))
-		            		{
-		            			echo "<option value='".$row_circle_info['circleinfoid']."'>".$row_circle_info['circlevalue']."</option>";
-		            		}
-		            		
-		            	}
-		            ?>
-		            </select>   
+		            Job Code: <input type="text" class="form-control form-control-sm jobno" name="jobno" value="<?php echo $row['jobno'];?>" >   
 		        </div> 
 		        <div class="form-group">
 		            Location: 
 		            <?php 
 		            	if($row['status']=='0')
 		            	{
-		            		echo "<select class='form-control locationid'>";
+		            		echo "<select class='form-control form-control-sm locationid'>";
 		            	}
 		            	else
 		            	{
-		            		echo "<select class='form-control locationid' disabled>";
+		            		echo "<select class='form-control form-control-sm locationid' disabled>";
 		            	}
-		            ?>
-		            <option selected value="<?php echo $row['locationid'];?>"><?php echo $row['sitename'];?></option>
-		            
+		            ?>	            
 		            <option value='0'>-- Select Location --</option>
 		            <?php
-		            	$sql_location_info = "SELECT * FROM location WHERE circleinfoid=".$row['circleinfoid'];
+		            	$sql_location_info = "SELECT * FROM location ORDER BY locationid";
 		            	$location_info_result = pg_query($conn, $sql_location_info);
 		            	if(pg_num_rows($location_info_result)>0)
 		            	{
 		            		while($row_location_info = pg_fetch_array($location_info_result))
-		            		{
-		            			echo "<option value='".$row_location_info['locationid']."'>".$row_location_info['sitename']."</option>";
+					{
+						if ($row['locationid'] == $row_location_info['locationid'])
+							echo "<option value='".$row_location_info['locationid']."' selected>".$row_location_info['sitename']."</option>";
+						else
+			            			echo "<option value='".$row_location_info['locationid']."'>".$row_location_info['sitename']."</option>";
 		            		}
-		            		
 		            	}
 		            ?>
 		            </select>   
-		        </div>
-
+			</div>
 		        <div class="form-group">
-		            Vendor info: <select class="form-control vendorinfoid">
-		            <option selected value="<?php echo $row['vendorinfoid'];?>"><?php echo $row['vendorname'];?></option>
-		            <option value='0'>-- Select user --</option>
-		            <?php
-		            	$sql_vendor_info = "SELECT * FROM vendorinfo ORDER BY vendorinfoid";
-		            	$vendor_info_result = pg_query($conn, $sql_vendor_info);
-		            	if(pg_num_rows($vendor_info_result)>0)
-		            	{
-		            		while($row_vendor_info = pg_fetch_array($vendor_info_result))
-		            		{
-		            			echo "<option value='".$row_vendor_info['vendorinfoid']."'>".$row_vendor_info['vendorname']."</option>";
-		            		}
-		            		
-		            	}
-		            ?>
-		            </select>   
-		        </div>
-
-		        
-		        <div class="form-group">
-		            Accuracy : <input type="text" class="form-control accurdistance" name="accurdistance" value="<?php echo $row['accurdistance'];?>"  id="accurdistance" >   
+		      		Job Submission Token: <input type="text" class="form-control form-control-sm jobtoken" name="jobtoken" id="jobtoken" value="<?php echo $row['tokenid'];?>">
 		        </div>
 		        <div class="form-group">
-		        	Strict Location :
-		          	<input type='checkbox' data-toggle='toggle' name='errorflg' class='errorflg' id='errorflg' checked data-on='On' data-off='Off'>
-		          	
+		        	Accuracy in Meters (Eg. 200): <input type="text" class="form-control form-control-sm accurdistance" name="accurdistance" id="accurdistance" value="<?php echo $row['accurdistance'];?>">
 		        </div>
-		        
-		        <div class="form-group status">
-		                                
+		        <div class="form-group">
+		        	Strict Location? <input type='checkbox' data-toggle='toggle' name='errorflg' class='errorflg' id='errorflg' <?php if ($row['errorflg'] == '1') echo "checked"; ?> data-on='On' data-off='Off' data-size="small">
+		        </div>		        
+		        <div class="form-group status">		                                
 		        </div>
-		        <div class="alert alert-success success_status" style='display:none'> <a href="#" class="close" data-dismiss="alert">×</a>
+		        <div class="alert alert-success success_status" style='display:none'> <a href="#" class="close" data-dismiss="alert"></a>
 				    <h5>Success</h5>
-				    <div>Job info updated successfully!</div>
+				    <div>Job updated successfully!</div>
 				</div>
 
 				<div>
-	                <button type="button" class="btn btn-info update_submit">Update</button>
+	                <button type="button" class="btn btn-sm btn-info update_submit">Update</button>
 	            </div>
 		    </form>
 		</div>
@@ -256,41 +243,49 @@ $(document).ready(function(){
 		event.preventDefault();
 		var jobinfoid = $('.jobinfoid').val();
 		var jobno = $('.jobno').val();
-		var circleinfoid = $('.circleinfoid').val();
 		var locationid = $('.locationid').val();
+		var jobtoken = $('.jobtoken').val();
 		var accurdistance = $('.accurdistance').val();
-		var errorflg = $('.errorflg').val();
-		var vendorinfoid =$('.vendorinfoid').val();
+		var errorflg = $(".errorflg").is(":checked");
+		if(errorflg==true)
+		{
+			errorflg='1';
+		}
+		else
+		{
+			errorflg='0';
+		}
+		
 		var task = 'update_job_info';
 		if(jobno=='' || jobno==null)
 		{
-			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter job number.</div>");
-			return false;
-		}
-		else
-		if(circleinfoid=='0')
-		{
-			$('.status').html("<div class='alert alert-danger'>Select circle first.</div>");
+			$('.status').html("<div class='alert alert-danger'>Please enter Job Code</div>");
 			return false;
 		}
 		else
 		if(locationid=='0')
 		{
-			$('.status').html("<div class='alert alert-danger'>Select location & then submit.</div>");
+			$('.status').html("<div class='alert alert-danger'>Please select Location</div>");
 			return false;
 		}
 		else
-		if(vendorinfoid=='0')
+		if(jobtoken=='' || jobtoken==null)
 		{
-			$('.status').html("<div class='alert alert-danger'>Select vendor & then submit.</div>");
+			$('.status').html("<div class='alert alert-danger'>Please enter Job Submission Token</div>");
 			return false;
 		}
+		else
+		if(accurdistance=='' || accurdistance==null)
+		{
+			$('.status').html("<div class='alert alert-danger'>Please enter Accuracy in Meters</div>");
+			return false;
+		}		
 		else
 		{
 			$.ajax({
 				type : 'post',
 				url : 'updation_helper.php',
-				data : 'jobinfoid='+jobinfoid+'&jobno='+jobno+'&circleinfoid='+circleinfoid+'&locationid='+locationid+'&accurdistance='+accurdistance+'&errorflg='+errorflg+'&vendorinfoid='+vendorinfoid+'&task='+task,
+				data : 'jobinfoid='+jobinfoid+'&jobno='+jobno+'&locationid='+locationid+'&jobtoken='+jobtoken+'&accurdistance='+accurdistance+'&errorflg='+errorflg+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					if(res == 'success')

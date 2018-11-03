@@ -1,5 +1,33 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
+
 	//include connection file 
 	include 'php/config.php';
 	$conn = pg_connect($conn_string); 
@@ -13,7 +41,7 @@
 		0 =>'allocid',
 		1 =>'sitecode', 
 		2 =>'sitename',
-		3 =>'jobinfoid',
+		3 =>'J.jobinfoid',
 		4 =>'jobno', 
 		5 =>'barcode',
 		6 =>'scannedon'
@@ -22,15 +50,16 @@
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
-	if( !empty($params['search']['value']) ) {   
+	if( !empty($params['search']['value']) ) {
+	     	$paramsearchval = quote_smart($params['search']['value']);	
 		$where .=" AND ";
-		$where .=" ( CAST(allocid AS text) LIKE '%".$params['search']['value']."%' ";    
-		$where .=" OR sitecode LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR sitename LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(jobinfoid AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR jobno LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR barcode LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(scannedon AS text) LIKE '%".$params['search']['value']."%' ) ";
+		$where .=" ( CAST(allocid AS text) ILIKE '%".$paramsearchval."%' ";    
+		$where .=" OR sitecode ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR sitename ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(J.jobinfoid AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR jobno ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR barcode ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(scannedon AS text) ILIKE '%".$paramsearchval."%' ) ";
 	}
 
 	// getting total number records without any search
@@ -45,7 +74,7 @@
 	}
 
 
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".$params['order'][0]['dir']."  OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".quote_smart($params['order'][0]['dir'])."  OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 

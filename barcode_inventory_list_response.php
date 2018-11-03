@@ -1,5 +1,33 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
+
 	//include connection file 
 	include 'php/config.php';
 	$conn = pg_connect($conn_string); 
@@ -10,25 +38,21 @@
 
 	//define index of column
 	$columns = array( 
-		0 =>'r',
-		1 =>'barcodeinfoid', 
-		2 =>'barcode',
-		3 =>'locationid',
-		4 =>'type', 
-		5 =>'capturedon',
-		6 =>'lastmodifiedon',
-		7 =>'sitecode', 
-		8 =>'sitename'
+		0 =>'sitecode', 
+		1 =>'sitename',
+		2 =>'barcodeinfoid', 
+		3 =>'barcode',
 	);
 
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
-	if( !empty($params['search']['value']) ) {   
-		$where .=" AND ( CAST(barcodeinfoid AS text) LIKE '%".$params['search']['value']."%'  ";  
-		$where .=" OR lower(sitecode) LIKE '%".$params['search']['value']."%' ";  
-		$where .=" OR lower(sitename) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(barcode) LIKE '%".$params['search']['value']."%'  )";
+	if( !empty($params['search']['value']) ) {
+	     	$paramsearchval = quote_smart($params['search']['value']);
+		$where .=" AND ( CAST(barcodeinfoid AS text) ILIKE '%".$paramsearchval."%'  ";  
+		$where .=" OR sitecode ILIKE '%".$paramsearchval."%' ";  
+		$where .=" OR sitename ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR barcode ILIKE '%".$paramsearchval."%'  )";
 	}
 
 	// getting total number records without any search
@@ -45,7 +69,7 @@
 	}
 
 
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".$params['order'][0]['dir']."  OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".quote_smart($params['order'][0]['dir'])."  OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 

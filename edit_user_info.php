@@ -1,13 +1,35 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +41,6 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
-
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 
 $query = "SELECT * FROM circleinfo ORDER BY circleinfoid";
 $result = pg_query($conn, $query);
@@ -66,7 +79,14 @@ if (!$result)
                 </div>
             </nav>  
 			<?php
-			$userid = $_GET['userid'];
+			$userid = quote_smart($_GET['userid']);
+
+			if (!is_numeric($userid))
+			{
+				echo "ERROR : Invalid parameter value";
+				exit;
+			}
+
 			$query = "SELECT U.*,C.circlevalue,V.vendorname from userinfo as U JOIN circleinfo as C ON U.circleinfoid=C.circleinfoid JOIN vendorinfo as V ON U.vendorinfoid=V.vendorinfoid WHERE U.userid='$userid'";
 			$result = pg_query($conn, $query);
 			
@@ -237,7 +257,7 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'updation_helper.php',
-				data : 'userid='+userid+'&firstname='+firstname+'&lastname='+lastname+'&address='+address+'&contactnumber='+contactnumber+'&emailid='+emailid+'&circleinfoid='+circleinfoid+'&vendorinfoid='+vendorinfoid+'&task='+task,
+				data : 'userid='+userid+'&firstname='+firstname+'&lastname='+lastname+'&address='+address+'&contactnumber='+contactnumber+'&emailid='+emailid+'&circleinfoid='+circleinfoid+'&vendorinfoid='+vendorinfoid+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					if(res == 'success')

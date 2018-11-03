@@ -1,13 +1,35 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,17 +41,7 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
 
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
-
-$jobinfoid = $_GET['jobinfoid'];
 $query = "SELECT J.*,L.sitecode FROM jobinfo as J JOIN location as L ON J.locationid=L.locationid WHERE J.status='0' ORDER BY J.jobinfoid ";
 $result = pg_query($conn, $query);
 
@@ -78,16 +90,20 @@ if (!$result)
             </nav>  
 		<div  class="col-md-12">
 			
-		<h2>Job Dropdown Values</h2>
+		<h3>Job Dropdown Values</h3>
 		<?php
-				echo "<h3 class='h4'>". pg_num_rows($result) . " jobs found</h3>";
-				$jobinfoid = $_GET['jobinfoid'];
+				$jobinfoid = quote_smart($_GET['jobinfoid']);
+				
+				if (!is_numeric($jobinfoid))
+				{
+					echo "ERROR : Invalid parameter value";
+					exit;
+				}
+				echo "<h5>". pg_num_rows($result) . " jobs found</h5>";
 			?>
-			<div class="col=md-12 form-group">
-				<label for="select_job" class="col-sm-4 control-label">Select Job:</label>
-		        <div>
+
 		            <select name='jobinfoid' class='jobinfoid form-control form-control-sm' style='width:200px;'>
-						<option value='0'>-- Select job --</option>
+						<option value='0'>-- Select Job --</option>
 						<?php
 							while($row = pg_fetch_array($result))
 							{
@@ -115,34 +131,34 @@ if (!$result)
 				$count = $row1['count'];
 				if($count=='0')
 				{
-					echo "<h3 style='color:red;'>No job dropdown found for this JOB";
+					echo "<h3 style='color:red;'>No dropdowns found for this job";
 				}
 				else
 				{
-					echo "<table class='table table-bordered table-responsive table-condensed table-scroll table-fixed-header'  cellspacing='0' cellspacing='0' width='100%'>";
+					echo "<table class='table table-borderless table-responsive table-condensed table-scroll table-fixed-header'  cellspacing='0' cellspacing='0' width='100%'>";
 						
 						$select = 1;
 						echo "<tr>";
 							echo "<td>";
-								echo "<h4 style='color:blue;'> Previous terms for jobdropdown ".$select."</h4>";
+								echo "<h5 style='color:blue;'> Current values for dropdown ".$select."</h5>";
 								$sql2 = "SELECT * FROM jobdropdown  WHERE jobinfoid='$jobinfoid' AND category='1' ORDER BY indx";
 								$res2 = pg_query($conn,$sql2);
 								//$row2 = pg_fetch_array($res2);
 								
+								$pos = 1;
 								if(pg_num_rows($res2)>0)
 								{
 									echo "<table class='table table-bordered table-responsive table-condensed table-scroll table-fixed-header'  cellspacing='0' cellspacing='0' style='width:500px;'>";
-									$pos = 1;
 									while($row2 = pg_fetch_array($res2))
 									{
 										
 										echo "<tr>";
-											echo "<td> Position $pos Term: <td>";
+											echo "<td> Position $pos Term: </td>";
 											echo "<td>";
 												echo "<input type='text' id='".$row2['jobdropdownid']."' value='".$row2['term']."' class='form-control form-control-sm' style='width:250px;' disabled/>";
 											echo "</td>";
 											echo "<td>";
-												echo "<a class='btn btn-sm btn-danger edit_term' href='#edit_term_".$row2['jobdropdownid']."' data-toggle='modal'>Edit</a><br/>";
+												echo "<a class='btn btn-sm btn-primary edit_term' href='#edit_term_".$row2['jobdropdownid']."' data-toggle='modal'>Edit</a><br/>";
 											echo "</td>";
 											
 										echo "</tr>";
@@ -160,11 +176,11 @@ if (!$result)
 										            
 										            <!-- Modal edit term -->
 										            <div class='modal-body'>
-										                <h2 class='text-center'>Update Term</h2>
+										                <h3 class='text-center'>Update Term</h3>
 										                <form>
 													        <div class='form-group'>
-													        	<label for='term' class='control-label' style='color:blue;'>Previous term : ".$row2['term']."</label><br/>
-													            New term: <input type='text' class='form-control form-control-sm new_term_".$row2['jobdropdownid']."' name='new_term' placeholder='New term value' id='new_term' >
+													        <label for='term' class='control-label' style='color:blue;'>Current value: ".$row2['term']."</label><br/>
+													            <input type='text' class='form-control form-control-sm new_term_".$row2['jobdropdownid']."' name='new_term' placeholder='Enter new value' id='new_term' >
 													            <input type='hidden' class='form-control indx_val_".$row2['jobdropdownid']."' id='indx_val_".$row2['jobdropdownid']."' value='".$row2['indx']."'>       
 													        </div>
 													        
@@ -176,7 +192,7 @@ if (!$result)
 										            <!-- Modal Footer -->
 										            <div class='modal-footer'>
 										                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-										                <button type='button' class='btn btn-sm btn-danger btn_update' value='".$row2['jobdropdownid']."'>Update</button>
+										                <button type='button' class='btn btn-sm btn-primary btn_update' value='".$row2['jobdropdownid']."'>Update</button>
 										            </div>
 										        </div>
 										    </div>";
@@ -189,12 +205,12 @@ if (!$result)
 
 							echo "</td>";
 							echo "<td>";
-								echo "<h4 style='color:red;'> Enter new terms for jobdropdown ".$select."</h4>";
-								echo "<input type='text' id='select1_0' placeholder='Term at position 1 ' class='form-control form-control-sm'/><br/>";
-								echo "<input type='text' id='select2_0'  placeholder='Term at position 2 ' class='form-control form-control-sm'/><br/>";
-								echo "<input type='text' id='select3_0'  placeholder='Term at position 3 ' class='form-control form-control-sm'/><br/>";
-								echo "<input type='text' id='select4_0'  placeholder='Term at position 4 ' class='form-control form-control-sm'/><br/>";
-								echo "<input type='text' id='select5_0'  placeholder='Term at position 5 ' class='form-control form-control-sm'/><br/>";
+								echo "<h5 style='color:red;'> Add new values for dropdown ".$select."</h5>";
+								echo "<input type='text' id='select1_0'  placeholder='Term at position ".($pos+0)." ' class='form-control form-control-sm'/><br/>";
+								echo "<input type='text' id='select2_0'  placeholder='Term at position ".($pos+1)." ' class='form-control form-control-sm'/><br/>";
+								echo "<input type='text' id='select3_0'  placeholder='Term at position ".($pos+2)." ' class='form-control form-control-sm'/><br/>";
+								echo "<input type='text' id='select4_0'  placeholder='Term at position ".($pos+3)." ' class='form-control form-control-sm'/><br/>";
+								echo "<input type='text' id='select5_0'  placeholder='Term at position ".($pos+4)." ' class='form-control form-control-sm'/><br/>";
 							echo "</td>";
 						echo "</tr>";
 						
@@ -204,25 +220,25 @@ if (!$result)
 							
 							echo "<tr>";
 								echo "<td>";
-								echo "<h4 style='color:blue;'> Previous terms for jobdropdown ".$select."</h4>";
+								echo "<h5 style='color:blue;'> Current values for dropdown ".$select."</h5>";
 								$sql2 = "SELECT * FROM jobdropdown  WHERE jobinfoid='$jobinfoid' AND category='2' ORDER BY indx";
 								$res2 = pg_query($conn,$sql2);
 								//$row2 = pg_fetch_array($res2);
 								
+								$pos = 1;
 								if(pg_num_rows($res2)>0)
 								{
 									echo "<table class='table table-bordered table-responsive table-condensed table-scroll table-fixed-header'  cellspacing='0' cellspacing='0' style='width:500px;'>";
-									$pos = 1;
 									while($row2 = pg_fetch_array($res2))
 									{
 										
 										echo "<tr>";
-											echo "<td> Position $pos Term: <td>";
+											echo "<td> Position $pos Term: </td>";
 											echo "<td>";
 												echo "<input type='text' id='".$row2['jobdropdownid']."' value='".$row2['term']."' class='form-control form-control-sm' style='width:250px;' disabled/>";
 											echo "</td>";
 											echo "<td>";
-												echo "<a class='btn btn-sm btn-danger edit_term' href='#edit_term_".$row2['jobdropdownid']."' data-toggle='modal'>Edit</a><br/>";
+												echo "<a class='btn btn-sm btn-primary edit_term' href='#edit_term_".$row2['jobdropdownid']."' data-toggle='modal'>Edit</a><br/>";
 											echo "</td>";
 											
 										echo "</tr>";
@@ -240,11 +256,11 @@ if (!$result)
 										            
 										            <!-- Modal edit term -->
 										            <div class='modal-body'>
-										                <h2 class='text-center'>Update Term</h2>
+										                <h3 class='text-center'>Update Term</h3>
 										                <form>
 													        <div class='form-group'>
-													        <label for='term' class='control-label' style='color:blue;'>Previous term : ".$row2['term']."</label><br/>
-													            New term: <input type='text' class='form-control form-control-sm new_term_".$row2['jobdropdownid']."' name='new_term' placeholder='New term' id='new_term' >
+													        <label for='term' class='control-label' style='color:blue;'>Current value: ".$row2['term']."</label><br/>
+													            <input type='text' class='form-control form-control-sm new_term_".$row2['jobdropdownid']."' name='new_term' placeholder='Enter new value' id='new_term' >
 													            <input type='hidden' class='form-control indx_val_".$row2['jobdropdownid']."' id='indx_val_".$row2['jobdropdownid']."' value='".$row2['indx']."'>       
 													        </div>
 										                </form>
@@ -255,7 +271,7 @@ if (!$result)
 										            <!-- Modal Footer -->
 										            <div class='modal-footer'>
 										                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-										                <button type='button' class='btn btn-sm btn-danger btn_update' value='".$row2['jobdropdownid']."'>Update</button>
+										                <button type='button' class='btn btn-sm btn-primary btn_update' value='".$row2['jobdropdownid']."'>Update</button>
 										            </div>
 										        </div>
 										    </div>";
@@ -268,13 +284,13 @@ if (!$result)
 
 							echo "</td>";
 								echo "<td>";
-									echo "<h4 style='color:red;'> Enter new terms for jobdropdown ".$select."</h4>";
+									echo "<h5 style='color:red;'> Add new values for dropdown ".$select."</h5>";
 								
-									echo "<input type='text' id='select1_1' placeholder='Term at position 1 ' class='form-control form-control-sm'/><br/>";
-									echo "<input type='text' id='select2_1'  placeholder='Term at position 2 ' class='form-control form-control-sm'/><br/>";
-									echo "<input type='text' id='select3_1'  placeholder='Term at position 3 ' class='form-control form-control-sm'/><br/>";
-									echo "<input type='text' id='select4_1'  placeholder='Term at position 4 ' class='form-control form-control-sm'/><br/>";
-									echo "<input type='text' id='select5_1'  placeholder='Term at position 5 ' class='form-control form-control-sm'/><br/>";
+									echo "<input type='text' id='select1_1'  placeholder='Term at position ".($pos+0)." ' class='form-control form-control-sm'/><br/>";
+									echo "<input type='text' id='select2_1'  placeholder='Term at position ".($pos+1)." ' class='form-control form-control-sm'/><br/>";
+									echo "<input type='text' id='select3_1'  placeholder='Term at position ".($pos+2)." ' class='form-control form-control-sm'/><br/>";
+									echo "<input type='text' id='select4_1'  placeholder='Term at position ".($pos+3)." ' class='form-control form-control-sm'/><br/>";
+									echo "<input type='text' id='select5_1'  placeholder='Term at position ".($pos+4)." ' class='form-control form-control-sm'/><br/>";
 								echo "</td>";
 							echo "</tr>";
 							
@@ -322,7 +338,7 @@ $(document).ready(function(){
 		var term_val1=[];
 		var term_val2=[];
 		var task = 'add_new_terms';
-		var data = 'jobinfoid='+jobinfoid_val+'&task='+task;
+		var data = 'jobinfoid='+jobinfoid_val+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>');
 		
 		if(count==2)
 		{
@@ -427,7 +443,7 @@ $(document).ready(function(){
 		$.ajax({
 			type : 'post',
 			url : 'jobdropdown_helper.php',
-			data : 'jobdropdownid='+jobdropdownid+'&new_term_val='+new_term_val+'&indx='+indx+'&task='+task,
+			data : 'jobdropdownid='+jobdropdownid+'&new_term_val='+new_term_val+'&indx='+indx+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 			success : function(res)
 			{	
 				if(res=='conn_error')

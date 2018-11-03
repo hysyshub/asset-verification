@@ -1,31 +1,16 @@
 <?php 
-	session_start();
-	if($_SESSION['user']=='')
-	{
-		header('Location: login.php');
-	}
-	else
-	{
+session_start();
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+else
+{
 	date_default_timezone_set('Asia/Calcutta');
 
-	require_once('header.php');
-	include 'php/config.php';
-	
-	$conn = pg_connect($conn_string);
-
-	if(!$conn)
-	{
-		echo "ERROR : Unable to open database";
-		exit;
-	}
-
-	$conn = pg_connect($conn_string);
-
-	if(!$conn)
-	{
-		echo "ERROR : Unable to open database";
-		exit;
-	}
+	include 'php/sessioncheck.php';
+	include 'header.php';
 
 	$query = "SELECT * FROM generalinfo";
 	$result = pg_query($conn, $query);
@@ -45,9 +30,6 @@
 		exit;
 	}
 ?>
-
-
-
 <!-- Page Content start -->
         <div id="content">
 

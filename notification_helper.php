@@ -1,10 +1,42 @@
 <?php
-	
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+//echo "csrf post: " . $_POST['csrf_token']."<br/>";
+//echo "csrf session: " . $_SESSION['csrf_token']."<br/>";
+
+if (isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) 
+{
+
 	include 'php/config.php';
 	include 'NotificationHub.php';
 
-	$hub = new NotificationHub("Endpoint=sb://ihsav-notificationnamespace.servicebus.windows.net/;SharedAccessKeyName=DefaultFullSharedAccessSignature;SharedAccessKey=O25gx5oeD//cOjMSuOKlhGUkLv8Cd+E8rQ1t/bVTDkY=", "ihsav-notification");
-	error_reporting(0);
+	$hub = new NotificationHub($azure_notification_hub_string, $azure_notification_hub_name);
+	//error_reporting(0);
 	$conn = pg_connect($conn_string);
 
 	if(!$conn)
@@ -13,16 +45,16 @@
 		exit;
 	}
 
-	$task = $_POST['task'];
+	$task = quote_smart($_POST['task']);
 
 	// adding new circle info
 	if($task=='add_general_notification')
 	{
 		$info = null;
-		$userid = $_POST['userid'];
-		$gen_notify_sub = $_POST['gen_notify_sub'];
-		$gen_notify_message = $_POST['gen_notify_message'];
-		$gen_notify_url = $_POST['gen_notify_url'];
+		$userid = quote_smart($_POST['userid']);
+		$gen_notify_sub = quote_smart($_POST['gen_notify_sub']);
+		$gen_notify_message = quote_smart($_POST['gen_notify_message']);
+		$gen_notify_url = quote_smart($_POST['gen_notify_url']);
 		$jobinfoid=NULL;
 		$query = "INSERT INTO notifymaster(title,message,url) values('$gen_notify_sub','$gen_notify_message','$gen_notify_url') RETURNING notifymasterid";
 
@@ -68,11 +100,17 @@
 	if($task=='add_job_notification')
 	{
 		$info = null;
-		$jobinfoid = $_POST['jobinfoid'];
-		$job_notify_sub = $_POST['job_notify_sub'];
-		$job_notify_message = $_POST['job_notify_message'];
-		$job_notify_url = $_POST['job_notify_url'];
-		
+		$jobinfoid = quote_smart($_POST['jobinfoid']);
+		$job_notify_sub = quote_smart($_POST['job_notify_sub']);
+		$job_notify_message = quote_smart($_POST['job_notify_message']);
+		$job_notify_url = quote_smart($_POST['job_notify_url']);
+
+		if (!is_numeric($jobinfoid))
+		{
+			echo "ERROR : Invalid parameter value";
+			exit;
+		}
+
 		$query = "INSERT INTO notifymaster(jobinfoid,title,message,url) values('$jobinfoid','$job_notify_sub','$job_notify_message','$job_notify_url') RETURNING notifymasterid";
 
 		$ret = pg_query($conn, $query);
@@ -116,5 +154,13 @@
 		pg_close($conn);
 		echo $info;
 	}
-
+	else
+	{
+		echo "Error: Unknown operation";
+	}
+}
+else
+{
+	echo "Invalid Security Token";
+}
 ?>

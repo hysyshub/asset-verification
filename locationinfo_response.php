@@ -1,5 +1,33 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
+
 	//include connection file 
 	include 'php/config.php';
 	$conn = pg_connect($conn_string); 
@@ -36,28 +64,29 @@
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
-	if( !empty($params['search']['value']) ) {   
-		$where .=" AND ( CAST(locationid AS text) LIKE '%".$params['search']['value']."%' ";    
-		$where .=" OR CAST(sitecode AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(sitename) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(longitude) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(lattitude) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(address) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(towncitylocation) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(district) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(pincode AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(circlevalue) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(vendorname) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(technician_name) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(technician_contact) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(supervisor_name) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(supervison_contact) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(cluster) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(cluster_manager_name) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(cluster_manager_contact) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(zone) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(zonal_manager_name) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(zonal_manager_contact) LIKE '%".$params['search']['value']."%' )";
+	if( !empty($params['search']['value']) ) {
+	     	$paramsearchval = quote_smart($params['search']['value']);
+		$where .=" AND ( CAST(locationid AS text) ILIKE '%".$paramsearchval."%' ";    
+		$where .=" OR CAST(sitecode AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR sitename ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR longitude ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR lattitude ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR address ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR towncitylocation ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR district ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(pincode AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR circlevalue ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR vendorname ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR technician_name ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR technician_contact ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR supervisor_name ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR supervison_contact ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR cluster ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR cluster_manager_name ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR cluster_manager_contact ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR zone ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR zonal_manager_name ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR zonal_manager_contact ILIKE '%".$paramsearchval."%' )";
 	}
 
 	// getting total number records without any search
@@ -75,7 +104,7 @@
 	}
 
 
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".$params['order'][0]['dir']."  OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".quote_smart($params['order'][0]['dir'])."  OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 

@@ -1,5 +1,33 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
+
 	//include connection file 
 	include 'php/config.php';
 	$conn = pg_connect($conn_string); 
@@ -25,17 +53,18 @@
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
-	if( !empty($params['search']['value']) ) {   
-		$where .=" AND ( CAST(E.usereventsinfoid AS text) LIKE '%".$params['search']['value']."%'  ";  
-		$where .=" OR lower(U.emailid) LIKE '%".$params['search']['value']."%' ";  
-		$where .=" OR lower(E.event) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(E.longitude) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(E.latitude) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(E.capturedon AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(L.sitecode) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(L.sitename) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(J.jobinfoid AS text) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(J.jobno) LIKE '%".$params['search']['value']."%' )";
+	if( !empty($params['search']['value']) ) {
+	     	$paramsearchval = quote_smart($params['search']['value']);
+		$where .=" AND ( CAST(E.usereventsinfoid AS text) ILIKE '%".$paramsearchval."%'  ";  
+		$where .=" OR U.emailid ILIKE '%".$paramsearchval."%' ";  
+		$where .=" OR E.event ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR E.longitude ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR E.latitude ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(E.capturedon AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR L.sitecode ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR L.sitename ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(J.jobinfoid AS text) ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR J.jobno ILIKE '%".$paramsearchval."%' )";
 	}
 
 	// getting total number records without any search
@@ -43,8 +72,7 @@
 			FROM usereventsinfo AS E
 			INNER JOIN userinfo AS U ON E.userid=U.userid
 			LEFT JOIN jobinfo AS J ON E.jobinfoid=J.jobinfoid
-			LEFT JOIN location AS L ON J.locationid=L.locationid
-			WHERE U.emailid NOT LIKE '%sandeep%' AND U.emailid NOT LIKE '%padhi%'";
+			LEFT JOIN location AS L ON J.locationid=L.locationid WHERE 1=1";
 	$sqlTot .= $sql;
 	$sqlRec .= $sql;
 	//concatenate search sql if value exist
@@ -55,7 +83,7 @@
 	}
 
 
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".$params['order'][0]['dir']."  OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".quote_smart($params['order'][0]['dir'])."  OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 

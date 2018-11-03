@@ -3,11 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +21,7 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
 
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 ?>
 <!-- Page Content start -->
         <div id="content" style="overflow: auto;">
@@ -62,23 +56,26 @@ if(!$conn)
                 <thead>
                     <tr>
                  		<th>Id</th>
-				<th>Email Id</th>
-				<th>First Name</th>
-				<th>Last Name</th>
-				<th>Contact</th>
-				<th>Circle</th>
-				<th>Vendor</th>
-				<th>Device Info</th>
-				<th>Token Id</th>
-				<th>Longitude</th>
-				<th>Lattitude</th>
-				<th>Loggedin On</th>
-				<th>Edit</th>
-				<th>Change Password</th>
+						<th>Email Id</th>
+						<th>First Name</th>
+						<th>Last Name</th>
+						<th>Contact</th>
+						<th>Circle</th>
+						<th>Vendor</th>
+						<th>Device Info</th>
+						<th>Token Id</th>
+						<th>Longitude</th>
+						<th>Lattitude</th>
+						<th>Loggedin On</th>
+						<th>Edit</th>
+						<th>Change Password</th>
+						<th>Reset User</th>
                     </tr>
                 </thead>
-
             </table>
+            <div class="form-group">
+        		<center><img src="images/loading.gif" class='img-responsive loading_img' id='loading_img' style='widht:100px;height:100px;display:none;'/></center>
+        	</div>
         </div>
 	</div>
 		
@@ -181,17 +178,66 @@ if(!$conn)
 <script>
 $(document).ready(function(){
 	
-	$('.user_list').DataTable({
+	 var table = $('.user_list').DataTable({
             "bProcessing": true,
             "serverSide": true,
+            "columnDefs": [ {
+	            "targets": -1,
+	            "data": null,
+	            "defaultContent": "<span><button class='btn btn-sm btn-info'>Reset User</button><img src='images/loading.gif' width='24' height='24' style='display:none;' /></span>"
+	        } ],
             "ajax":{
                 url :"user_list_response.php", // json datasource
                 type: "post",  // type of method  ,GET/POST/DELETE
                 error: function(){
                     $(".user_list_processing").css("display","none");
-                }
+                },
             }
         });
+
+	$('.user_list tbody').on( 'click', 'button', function () {
+	var btnrow = table.row( $(this).parents('tr') );
+	var btnrowidx = btnrow.index();
+        var data = btnrow.data();
+	var btnspan = $(this).parents('span');
+	var btnloading = $(this).next();
+        var userid = data[0];
+        var useremailid = data[1];
+        var task = "reset_app_user";
+        var r = confirm("Do you want to reset the user " + userid + " # " + useremailid + "?");
+		if (r == true) 
+		{
+			$(btnloading).css("display", "inline");
+			$.ajax({
+				type : 'post',
+				url : 'updation_helper.php',
+				data : 'userid='+userid+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
+				success : function(res)
+				{
+					if(res == 'success')
+					{
+						table.cell(btnrowidx, 7).data('');
+						table.cell(btnrowidx, 8).data('');
+						table.cell(btnrowidx, 9).data('');
+						table.cell(btnrowidx, 10).data('');
+						table.cell(btnrowidx, 11).data('');
+						$(btnspan).html("Reset successfully");
+						return false;
+					}
+					else
+					{
+						alert(res);
+						$(btnloading).css("display", "none");
+						return false;
+					}
+				}
+			});
+		}
+		else
+		{
+			return false;
+		}
+    } );
 
 	// add button click
 	$('.btn_submit').click(function(){                        //btn_submit click
@@ -228,7 +274,7 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'addition_helper.php',
-				data : 'firstname='+firstname+'&lastname='+lastname+'&address='+address+'&vendorinfoid='+vendorinfoid+'&emailid='+emailid+'&circleinfoid='+circleinfoid+'&contactnumber='+contactnumber+'&task='+task,
+				data : 'firstname='+firstname+'&lastname='+lastname+'&address='+address+'&vendorinfoid='+vendorinfoid+'&emailid='+emailid+'&circleinfoid='+circleinfoid+'&contactnumber='+contactnumber+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					$('.loading_img').hide();

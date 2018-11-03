@@ -2,11 +2,13 @@
 session_start();
 if($_SESSION['user']=='')
 {
-    header('Location: login.php');
+	header('Location: login.php');
+	exit;
 }
 else
 {
-date_default_timezone_set('Asia/Calcutta');
+	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -110,14 +112,23 @@ include 'header.php';
         
 <?php include 'footer.php'; }?>
 <script src="jstree/dist/jstree.min.js"></script>
+
+<?php
+if ($_SESSION['superadmin'] == 1)
+{
+?>
 <script type="text/javascript">
 $('#lazy').jstree({
     'core' : {
         'data' : {
-            "url" : "asset-tree-helper.php",
+            "url" : "asset-tree-helper.php?operation=get_node",
             "data" : function (node) {
                 return { "id" : node.id };
             }
+	}
+	,'check_callback' : true,
+        'themes' : {
+              'responsive' : false
         }
     },
         search: {
@@ -131,8 +142,61 @@ $('#lazy').jstree({
 
             }
         },      
-    'plugins' : ["search"]
-});
+    'plugins' : ["search","state","contextmenu","wholerow"],
+    contextmenu: {items: customMenu}
+}).on('create_node.jstree', function (e, data) {
+              
+          $.get('asset-tree-helper.php?operation=create_node', { 'id' : data.node.parent, 'position' : data.position, 'text' : data.node.text })
+            .done(function (d) {
+              data.instance.set_id(data.node, d.id);
+            })
+            .fail(function () {
+              data.instance.refresh();
+            });
+        }).on('rename_node.jstree', function (e, data) {
+          $.get('asset-tree-helper.php?operation=rename_node', { 'id' : data.node.id, 'text' : data.text })
+            .fail(function () {
+              data.instance.refresh();
+            });
+        }).on('delete_node.jstree', function (e, data) {
+          $.get('asset-tree-helper.php?operation=delete_node', { 'id' : data.node.id })
+            .fail(function () {
+              data.instance.refresh();
+            });
+	});
+
+function customMenu(node) {
+    var tree = $("#lazy").jstree(true);	
+    // The default set of all items
+    var items = {
+        createItem: { // The "create" menu item
+		"separator_before": false,    
+		label: "Create",
+		    action: function (obj) {
+			var $node = tree.create_node(node);
+			tree.edit($node);
+		    }
+        },
+        renameItem: { // The "rename" menu item
+		"separator_before": true,    
+		label: "Rename",
+		    action: function (obj) {
+			tree.edit(node);
+		    }
+        },
+        deleteItem: { // The "delete" menu item
+		"separator_before": true,    
+		label: "Delete",
+		    action: function (obj) {
+			if(confirm('Are you sure to remove this node?')){
+            			tree.delete_node(node);
+            		}
+		    }
+        }
+    };
+
+    return items;
+}
 
 /*var to = false;
 $('#lazy_q').keyup(function () {
@@ -144,5 +208,41 @@ $('#lazy_q').keyup(function () {
 });*/
 
 </script>
+<?php
+}
+else
+{
+?>
+<script type="text/javascript">
+$('#lazy').jstree({
+    'core' : {
+        'data' : {
+            "url" : "asset-tree-helper.php?operation=get_node",
+            "data" : function (node) {
+                return { "id" : node.id };
+            }
+	}
+	,'check_callback' : true,
+        'themes' : {
+              'responsive' : false
+        }
+    },
+        search: {
+            case_insensitive: true,
+            ajax: {
+                url: "asset-tree-helper.php",
+                "data": function (n) {
+                    return { id: n.attr ? n.attr("id") : 0 };
+
+                }
+
+            }
+        },      
+    'plugins' : ["search","state","wholerow"],
+});
+</script>
+<?php
+}
+?>
 </body>
 </html>

@@ -1,6 +1,6 @@
 <?php
     include 'php/config.php';
-    error_reporting(0);
+    //error_reporting(0);
     date_default_timezone_set('Asia/Calcutta');
 
     $firstname = $_SESSION['user'];
@@ -69,26 +69,24 @@
 <meta name="msapplication-square310x310logo" content="mstile-310x310.png" />
 
     <!-- Bootstrap CSS CDN -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" integrity="sha384-9gVQ4dYFwwWSjIDZnLEWnxCjeSWFphJiwGPXr1jddIhOegiu1FwO5qRGvFXOdJZ4" crossorigin="anonymous">
+    <link rel="stylesheet" href="js/bootstrap-4.1.0/css/bootstrap.min.css">
 
     <!-- Our Custom CSS -->
     <link rel="stylesheet" href="css/style4.css">
 
     <!-- Font Awesome CSS -->
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    <link rel="stylesheet" href="js/fontawesome-free-5.2.0-web/css/all.css">
     
     <!-- Font Awesome JS -->
-    <script defer src="https://use.fontawesome.com/releases/v5.2.0/js/all.js" integrity="sha384-4oV5EgaV02iISL2ban6c/RmotsABqE4yZxZLcYMAdG7FAPsyHYAPpywE9PJo+Khy" crossorigin="anonymous"></script>
+    <script defer src="js/fontawesome-free-5.2.0-web/js/all.js"></script>
 
-    <!--link href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.dataTables.min.css" type="text/css"-->
-    
     <!--link rel="stylesheet" href="css/dataTables.bootstrap.min.css" type="text/css"  /-->
     <link href="css/bootstrap-multiselect.css" rel="stylesheet" type="text/css" />
     
     <link href="css/bootstrap-toggle.min.css" rel="stylesheet">
 
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css"/>
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/1.5.2/css/buttons.bootstrap4.min.css"/>
+    <link rel="stylesheet" type="text/css" href="js/DataTables-1.10.18/css/dataTables.bootstrap4.min.css"/>
+    <link rel="stylesheet" type="text/css" href="js/Buttons-1.5.4/css/buttons.bootstrap4.min.css"/>
 
     <link rel="stylesheet" href="css/site.css">
     <link rel="stylesheet" href="css/richtext.min.css">

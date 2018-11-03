@@ -26,8 +26,6 @@ if (isset($_SESSION['csrf_token']))
 	unset($_SESSION['csrf_token']);
 }
 
-session_destroy();
-
 header("Location: login.php");
 exit;
 

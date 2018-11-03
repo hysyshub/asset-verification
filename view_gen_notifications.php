@@ -3,11 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -193,7 +195,7 @@ $('.gen_notification_add').click(function(){                        //gen_notifi
     $.ajax({
         type : 'post',
         url : 'notification_helper.php',
-        data : 'gen_notify_sub='+gen_notify_sub+'&gen_notify_message='+gen_notify_message+'&gen_notify_url='+gen_notify_url+'&userid='+userid+'&task='+task,
+        data : 'gen_notify_sub='+gen_notify_sub+'&gen_notify_message='+gen_notify_message+'&gen_notify_url='+gen_notify_url+'&userid='+userid+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
         success : function(res)
         {
             $(this).attr("disabled",false);

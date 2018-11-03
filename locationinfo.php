@@ -3,12 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
-
+	include 'php/sessioncheck.php';
 ?>
 <html>
 <head>
@@ -102,7 +103,13 @@ include 'header.php';
 			        </div> 
 			        <div class="form-group">
 			            Site Name: <input type="text" class="form-control form-control-sm sitename" name="sitename" placeholder="Site Name" id="sitename" >   
+				</div> 
+			        <div class="form-group">
+	        		    Longitude: <input type="text" class="form-control form-control-sm longitude" name="longitude" placeholder="Longitude" id="longitude" >   
 			        </div> 
+	        		<div class="form-group">
+			            Lattitude: <input type="text" class="form-control form-control-sm lattitude" name="lattitude" placeholder="Lattitude" id="lattitude" > 
+	        		</div> 
 			        <div class="form-group">
 			            Address: <input type="text" class="form-control form-control-sm address" name="address" placeholder="Address" id="address" >   
 			        </div> 
@@ -184,7 +191,7 @@ include 'header.php';
 			        </div>
 			        <div class="alert alert-success success_status" style='display:none'> <a href="#" class="close" data-dismiss="alert">×</a>
 					    <h5>Success</h5>
-					    <div>New location info added successfully!</div>
+					    <div>New location added successfully!</div>
 					</div>
                 </form>
             </div>
@@ -224,6 +231,8 @@ $(document).ready(function(){
 		event.preventDefault();
 		var sitecode = $('.sitecode').val();
 		var sitename = $('.sitename').val();
+		var longitude = $('.longitude').val();
+		var lattitude = $('.lattitude').val();
 		var address = $('.address').val();
 		var towncitylocation = $('.towncitylocation').val();
 		var district = $('.district').val();
@@ -243,25 +252,37 @@ $(document).ready(function(){
 		var task = 'add_location_info';
 		if(sitecode=='' || sitecode==null)
 		{
-			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter site code.</div>");
+			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter site code</div>");
 			return false;
 		}
 		else
 		if(sitename=='' || sitename==null)
 		{
-			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter site name.</div>");
+			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter site name</div>");
+			return false;
+		}
+		else
+		if(longitude=='' || longitude==null)
+		{
+			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter site longitude</div>");
+			return false;
+		}
+		else
+		if(lattitude=='' || lattitude==null)
+		{
+			$('.status').html("<div class='alert alert-danger'><strong>Empty field!</strong> Please enter site lattitude</div>");
 			return false;
 		}
 		else
 		if(circleinfoid=='0')
 		{
-			$('.status').html("<div class='alert alert-danger'>Select circle first.</div>");
+			$('.status').html("<div class='alert alert-danger'>Please select Circle</div>");
 			return false;
 		}
 		else
 		if(vendorinfoid=='0')
 		{
-			$('.status').html("<div class='alert alert-danger'>Select vendor & then submit.</div>");
+			$('.status').html("<div class='alert alert-danger'>Please select Vendor</div>");
 			return false;
 		}
 		else
@@ -269,12 +290,12 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'addition_helper.php',
-				data : 'sitecode='+sitecode+'&sitename='+sitename+'&address='+address+'&towncitylocation='+towncitylocation+'&district='+district+'&pincode='+pincode+'&circleinfoid='+circleinfoid+'&vendorinfoid='+vendorinfoid+'&technician_name='+technician_name+'&technician_contact='+technician_contact+'&supervisor_name='+supervisor_name+'&supervison_contact='+supervison_contact+'&cluster='+cluster+'&cluster_manager_name='+cluster_manager_name+'&cluster_manager_contact='+cluster_manager_contact+'&zone='+zone+'&zonal_manager_name='+zonal_manager_name+'&zonal_manager_contact='+zonal_manager_contact+'&task='+task,
+				data : 'sitecode='+sitecode+'&sitename='+sitename+'&longitude='+longitude+'&lattitude='+lattitude+'&address='+address+'&towncitylocation='+towncitylocation+'&district='+district+'&pincode='+pincode+'&circleinfoid='+circleinfoid+'&vendorinfoid='+vendorinfoid+'&technician_name='+technician_name+'&technician_contact='+technician_contact+'&supervisor_name='+supervisor_name+'&supervison_contact='+supervison_contact+'&cluster='+cluster+'&cluster_manager_name='+cluster_manager_name+'&cluster_manager_contact='+cluster_manager_contact+'&zone='+zone+'&zonal_manager_name='+zonal_manager_name+'&zonal_manager_contact='+zonal_manager_contact+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					if(res == 'duplicate')
 					{
-						$('.status').html("<div class='alert alert-danger'><strong>Duplicate record!</strong> Location info already exists.</div>");
+						$('.status').html("<div class='alert alert-danger'><strong>Duplicate record!</strong> Location already exists.</div>");
 						return false;
 					}
 					else
@@ -373,7 +394,7 @@ $(document).ready(function(){
 			$.ajax({
 			type : 'post',
 			url : 'updation_helper.php',
-			data : 'edit_locationid='+edit_locationid+'&edit_sitecode='+edit_sitecode+'&edit_sitename='+edit_sitename+'&edit_address='+edit_address+'&edit_towncitylocation='+edit_towncitylocation+'&edit_district='+edit_district+'&edit_pincode='+edit_pincode+'&edit_circleinfoid='+edit_circleinfoid+'&edit_vendorinfoid='+edit_vendorinfoid+'&edit_technician_name='+edit_technician_name+'&edit_technician_contact='+edit_technician_contact+'&edit_supervisor_name='+edit_supervisor_name+'&edit_supervison_contact='+edit_supervison_contact+'&edit_cluster='+edit_cluster+'&edit_cluster_manager_name='+edit_cluster_manager_name+'&edit_cluster_manager_contact='+edit_cluster_manager_contact+'&edit_zone='+edit_zone+'&edit_zonal_manager_name='+edit_zonal_manager_name+'&edit_zonal_manager_contact='+edit_zonal_manager_contact+'&task='+task,
+			data : 'edit_locationid='+edit_locationid+'&edit_sitecode='+edit_sitecode+'&edit_sitename='+edit_sitename+'&edit_address='+edit_address+'&edit_towncitylocation='+edit_towncitylocation+'&edit_district='+edit_district+'&edit_pincode='+edit_pincode+'&edit_circleinfoid='+edit_circleinfoid+'&edit_vendorinfoid='+edit_vendorinfoid+'&edit_technician_name='+edit_technician_name+'&edit_technician_contact='+edit_technician_contact+'&edit_supervisor_name='+edit_supervisor_name+'&edit_supervison_contact='+edit_supervison_contact+'&edit_cluster='+edit_cluster+'&edit_cluster_manager_name='+edit_cluster_manager_name+'&edit_cluster_manager_contact='+edit_cluster_manager_contact+'&edit_zone='+edit_zone+'&edit_zonal_manager_name='+edit_zonal_manager_name+'&edit_zonal_manager_contact='+edit_zonal_manager_contact+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 			success : function(res)
 			{
 				if(res == 'success')

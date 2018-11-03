@@ -1,33 +1,69 @@
 <?php 
 session_start();
-if($_SESSION['user']=='')
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='' || $_SESSION['superadmin'] != 1)
 {
     header('Location: login.php');
+    exit;
 }
 else
 {
-    error_reporting(0);
-    date_default_timezone_set('Asia/Calcutta');
+	//error_reporting(0);
+	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
 <head>
 <title>Edit Admin</title>
 
+<style>
+.btn-default {
+    color: #333;
+    background-color: #fff;
+    border-color: #ccc !important;
+}
+
+.btn-default:hover, .btn-default:focus, .btn-default:active, .btn-default.active {
+    color: #333;
+    background-color: #e6e6e6;
+    border-color: #adadad;
+}
+
+.btn:active, .btn.active {
+    background-image: none;
+    outline: 0;
+    -webkit-box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+    box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
+}
+
+</style>
+
 </head>
 <body>
 <?php
 
 include 'header.php';
-include 'php/config.php';
 
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-    echo "ERROR : Unable to open database";
-    exit;
-}
 ?>
 <!-- Page Content start -->
         <div id="content" style="overflow: auto;">
@@ -61,7 +97,14 @@ if(!$conn)
             <div  class="col-md-6">
         <h3>Edit Admin</h3>
             <?php
-				$admininfoid = $_GET['admininfoid'];
+				$admininfoid = quote_smart($_GET['admininfoid']);
+
+				if (!is_numeric($admininfoid))
+				{
+					echo "ERROR : Invalid parameter value";
+					exit;
+				}
+
 				$query = "SELECT * from admininfo WHERE admininfoid='$admininfoid'";
 				$result = pg_query($conn, $query);
 				
@@ -95,7 +138,12 @@ if(!$conn)
 			        <div class="form-group">
 			            Contact number : <input type="text" class="form-control form-control-sm contactnumber" name="contactnumber" value="<?php echo $row['contactnumber'];?>" >   
 			        </div>
-			        
+
+			        <div class="form-group">
+			        	Is Super Admin?
+					<input type='checkbox' data-toggle='toggle' name='superadmin' class='superadmin' id='superadmin' <?php if ($row['superadmin'] == '1') echo "checked"; ?> data-on='On' data-off='Off' data-size="small">
+		          	
+		        	</div>				
 			        <div class="form-group status">
 			                                
 			        </div>
@@ -128,6 +176,16 @@ $(document).ready(function(){
 		var emailid = $('.emailid').val();
 		var address = $('.address').val();
 		var contactnumber = $('.contactnumber').val();
+		var superadmin = $(".superadmin").is(":checked");
+		if(superadmin==true)
+		{
+			superadmin='1';
+		}
+		else
+		{
+			superadmin='0';
+		}
+
 		var task = 'update_admin_info';
 		if(firstname=='' || firstname==null)
 		{
@@ -151,7 +209,7 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'updation_helper.php',
-				data : 'admininfoid='+admininfoid+'&firstname='+firstname+'&lastname='+lastname+'&address='+address+'&contactnumber='+contactnumber+'&emailid='+emailid+'&task='+task,
+				data : 'admininfoid='+admininfoid+'&firstname='+firstname+'&lastname='+lastname+'&address='+address+'&contactnumber='+contactnumber+'&emailid='+emailid+'&superadmin='+superadmin+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					if(res == 'success')

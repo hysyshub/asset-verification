@@ -1,5 +1,33 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
+
 	//include connection file 
 	include 'php/config.php';
 	$conn = pg_connect($conn_string); 
@@ -10,25 +38,26 @@
 
 	//define index of column
 	$columns = array( 
-		0 =>'lastupdatedon', 
-		1 =>'firstname', 
-		2 =>'lastname',
+		0 =>'querymasterid', 
+		1 =>'firstname, lastname', 
+		2 =>'title',
 		3 =>'title',
 		4 =>'jobno',
-		5 =>'querymasterid'
+		5 =>'lastupdatedon'
 	);
 
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
 
-	if( !empty($params['search']['value']) ) { 
-		$where .=" AND ( CAST(X.querymasterid AS text) LIKE '%".$params['search']['value']."%'  ";  
-		$where .=" OR lower(U.firstname) LIKE '%".$params['search']['value']."%' "; 
-		$where .=" OR lower(U.lastname) LIKE '%".$params['search']['value']."%' ";  
-		$where .=" OR lower(Q.title) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(J.jobno) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR  CAST(X.lastupdatedon AS text) LIKE '%".$params['search']['value']."%' )";
+	if( !empty($params['search']['value']) ) {
+	       	$paramsearchval = quote_smart($params['search']['value']);
+		$where .=" AND ( CAST(X.querymasterid AS text) ILIKE '%".$paramsearchval."%'  ";  
+		$where .=" OR U.firstname ILIKE '%".$paramsearchval."%' "; 
+		$where .=" OR U.lastname ILIKE '%".$paramsearchval."%' ";  
+		$where .=" OR Q.title ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR J.jobno ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(X.lastupdatedon AS text) ILIKE '%".$paramsearchval."%' )";
 	}
 	
 	//data-table filter "user-id"
@@ -39,7 +68,7 @@
 		}
 		else
 		{
-			$where .=" AND U.userid = '".$params['columns'][0]['search']['value']."' ";
+			$where .=" AND U.userid = '".quote_smart($params['columns'][0]['search']['value'])."' ";
 		}
 	}
 
@@ -68,13 +97,13 @@
 	//data-table filter "from-date"
 	if( !empty($params['columns'][2]['search']['value']) ) 
 	{ 
-		$where .=" AND X.lastupdatedon >= '".$params['columns'][2]['search']['value']."' ";
+		$where .=" AND X.lastupdatedon >= '".quote_smart($params['columns'][2]['search']['value'])."' ";
 	}
 
 	//data-table filter "upto-date"
 	if( !empty($params['columns'][3]['search']['value']) ) 
 	{ 
-		$where .=" AND X.lastupdatedon <= '".$params['columns'][3]['search']['value']." 23:59:59' ";
+		$where .=" AND X.lastupdatedon <= '".quote_smart($params['columns'][3]['search']['value'])." 23:59:59' ";
 	}
 
 
@@ -103,7 +132,7 @@
 	}
 
 	//echo $sqlRec;exit;
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."  DESC OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."  ".quote_smart($params['order'][0]['dir'])." OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 

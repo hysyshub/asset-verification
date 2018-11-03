@@ -1,0 +1,26 @@
+RewriteEngine On
+RewriteCond %{THE_REQUEST} !HTTP/1.1$
+RewriteRule .* - [F]
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+RewriteCond %{REQUEST_URI} base64_encode.*\(.*\) [OR]
+RewriteCond %{REQUEST_URI} (\<|<).*script.*(\>|>) [NC,OR]
+RewriteCond %{REQUEST_URI} (\<|<).*iframe.*(\>|>) [NC,OR]
+RewriteCond %{REQUEST_URI} (\<|<).*style.*(\>|>) [NC,OR]
+RewriteCond %{REQUEST_URI} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+RewriteCond %{REQUEST_URI} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+RewriteRule ^(.*)$ 404.php [F,L]
+
+AddOutputFilterByType DEFLATE text/html text/plain text/xml application/x-httpd-php text/css text/javascript application/javascript
+
+Options -Indexes
+
+# One year for image files
+<filesMatch ".(jpg|jpeg|png|gif|ico|woff)$">
+Header set Cache-Control "max-age=31536000, public"
+</filesMatch>
+# One month for css and js
+<filesMatch ".(css|js)$">
+Header set Cache-Control "max-age=2628000, public"
+</filesMatch>

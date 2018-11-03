@@ -1,5 +1,33 @@
-
 <?php
+session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
+if($_SESSION['user']=='')
+{
+	header('Location: login.php');
+	exit;
+}
+
+date_default_timezone_set('Asia/Calcutta');
+
 	//include connection file 
 	include 'php/config.php';
 	$conn = pg_connect($conn_string); 
@@ -18,23 +46,24 @@
 	$where = $sqlTot = $sqlRec = "";
 
 	// check search value if exist
-	if( !empty($params['search']['value']) ) {   
-		$where .=" AND ( CAST(U.userid AS text) LIKE '%".$params['search']['value']."%' ";    
-		$where .=" OR lower(U.emailid) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.firstname) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.lastname) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.contactnumber) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(C.circlevalue) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(V.vendorname) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.deviceinfo) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.tokenid) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.longitude) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR lower(U.lattitude) LIKE '%".$params['search']['value']."%' ";
-		$where .=" OR CAST(U.loggedinon AS text) LIKE '%".$params['search']['value']."%' )";
+	if( !empty($params['search']['value']) ) {
+	     	$paramsearchval = quote_smart($params['search']['value']);
+		$where .=" AND ( CAST(U.userid AS text) ILIKE '%".$paramsearchval."%' ";    
+		$where .=" OR U.emailid ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.firstname ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.lastname ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.contactnumber ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR C.circlevalue ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR V.vendorname ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.deviceinfo ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.tokenid ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.longitude ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR U.lattitude ILIKE '%".$paramsearchval."%' ";
+		$where .=" OR CAST(U.loggedinon AS text) ILIKE '%".$paramsearchval."%' )";
 	}
 
 	// getting total number records without any search
-	$sql = "SELECT * FROM userinfo AS U, circleinfo AS C, vendorinfo AS V WHERE U.circleinfoid=C.circleinfoid AND U.vendorinfoid=V.vendorinfoid AND emailid NOT LIKE '%sandeep%' AND emailid NOT LIKE '%padhi%'";
+	$sql = "SELECT * FROM userinfo AS U, circleinfo AS C, vendorinfo AS V WHERE U.circleinfoid=C.circleinfoid AND U.vendorinfoid=V.vendorinfoid ";
 	$sqlTot .= $sql;
 	$sqlRec .= $sql;
 	//concatenate search sql if value exist
@@ -45,7 +74,7 @@
 	}
 
 
- 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".$params['order'][0]['dir']."  OFFSET ".$params['start']." LIMIT ".$params['length']." ";
+ 	$sqlRec .=  " ORDER BY ". $columns[$params['order'][0]['column']]."   ".quote_smart($params['order'][0]['dir'])."  OFFSET ".quote_smart($params['start'])." LIMIT ".quote_smart($params['length'])." ";
 
 	$queryTot = pg_query($conn, $sqlTot);
 

@@ -3,11 +3,13 @@ session_start();
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +21,6 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
-
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 
 $query = "SELECT * FROM vendorinfo ORDER BY vendorinfoid";
 $result = pg_query($conn, $query);
@@ -57,6 +50,9 @@ if (!$result)
                         <ul class="nav navbar-nav ml-auto">
                         	<li class="nav-item">
                                 <a href="#add_new_vendor_info" data-toggle='modal' style="color:blue;text-align:right;" class="nav-link">Add New Vendor</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="import-vendor-info.php" style="color:blue;text-align:right;" class="nav-link">Import Vendors</a>
                             </li>
                         </ul>
                     </div>
@@ -149,7 +145,7 @@ $(document).ready(function(){
 			$.ajax({
 				type : 'post',
 				url : 'addition_helper.php',
-				data : 'vendorname='+vendorname+'&task='+task,
+				data : 'vendorname='+vendorname+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 				success : function(res)
 				{
 					if(res == 'duplicate')

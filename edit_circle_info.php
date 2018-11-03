@@ -1,13 +1,35 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
-    header('Location: login.php');
+	header('Location: login.php');
+	exit;
 }
 else
 {
-    error_reporting(0);
-    date_default_timezone_set('Asia/Calcutta');
+	//error_reporting(0);
+	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +41,7 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
 
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-    echo "ERROR : Unable to open database";
-    exit;
-}
 ?>
 <!-- Page Content start -->
         <div id="content" style="overflow: auto;">
@@ -58,7 +72,14 @@ if(!$conn)
             <div  class="col-md-6">
         <h3>Edit Circle</h3>
             <?php
-				$circleinfoid = $_GET['circleinfoid'];
+				$circleinfoid = quote_smart($_GET['circleinfoid']);
+
+				if (!is_numeric($circleinfoid))
+				{
+					echo "ERROR : Invalid parameter value";
+					exit;
+				}
+
 				$query = "SELECT * FROM circleinfo  WHERE circleinfoid='$circleinfoid'";
 
 				$result = pg_query($conn, $query);
@@ -133,7 +154,7 @@ $(document).ready(function(){
 			$.ajax({
 			type : 'post',
 			url : 'updation_helper.php',
-			data : 'circleinfoid='+circleinfoid+'&circlecode='+circlecode+'&circlevalue='+circlevalue+'&task='+task,
+			data : 'circleinfoid='+circleinfoid+'&circlecode='+circlecode+'&circlevalue='+circlevalue+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 			success : function(res)
 			{
 				if(res == 'success')

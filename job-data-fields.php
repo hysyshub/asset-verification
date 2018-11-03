@@ -1,13 +1,35 @@
 <?php 
 session_start();
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
+    {
+        $value = stripslashes( $value );
+    }
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
+
 if($_SESSION['user']=='')
 {
 	header('Location: login.php');
+	exit;
 }
 else
 {
-	error_reporting(0);
+	//error_reporting(0);
 	date_default_timezone_set('Asia/Calcutta');
+	include 'php/sessioncheck.php';
 
 ?>
 <html>
@@ -19,15 +41,6 @@ else
 <?php
 
 include 'header.php';
-include 'php/config.php';
-
-$conn = pg_connect($conn_string);
-
-if(!$conn)
-{
-	echo "ERROR : Unable to open database";
-	exit;
-}
 
 $query = "SELECT J.*,L.sitecode FROM jobinfo as J JOIN location as L ON J.locationid=L.locationid WHERE J.status='0' ORDER BY J.jobinfoid ";
 $result = pg_query($conn, $query);
@@ -79,13 +92,17 @@ if (!$result)
 			
 		<h3>Job Data Fields</h3>
 			<?php
-				$jobinfoid = $_GET['jobinfoid'];
+				$jobinfoid = quote_smart($_GET['jobinfoid']);
+
+				if (!is_numeric($jobinfoid))
+				{
+					echo "ERROR : Invalid parameter value";
+					exit;
+				}
 			?>
-			<div class="col=md-12 form-group">
-				<label for="select_job" class="col-sm-4 control-label">Select Job:</label>
-		        <div>
+
 		            <select name='jobinfoid' class='jobinfoid form-control form-control-sm' style='width:200px;'>
-						<option value='0'>-- Select job --</option>
+						<option value='0'>-- Select Job --</option>
 						<?php
 							while($row = pg_fetch_array($result))
 							{
@@ -101,7 +118,6 @@ if (!$result)
 
 						?>
 					</select>
-				</div>
 			</div>
 			<hr/>
 			<?php
@@ -109,14 +125,12 @@ if (!$result)
 		if($jobinfoid!='0')
 		{
 	?>
-		<div class='visit_info'>
-			
-			<table id='tieuptable' class='table table-bordered table-responsive table-condensed table-scroll table-fixed-header' style="width:100%;">
+			<table id='tieuptable' class='table table-borderless table-responsive table-condensed table-scroll table-fixed-header' style="width:100%;">
 				<input type='hidden' class='jobinfoid_val' value="<?php echo $jobinfoid;?>">
 				<tr>
 					<td>
 						<div class="col-md-12 form-group">
-							<label for="scanner" class="col-sm-12 control-label">Scanner:</label>
+							<h4>Scanner:</h4>
 			                <div>
 			                <?php
 			                		$sql_scan = "SELECT count(visittype) as count FROM visits  WHERE jobinfoid='$jobinfoid' AND visittype='2' GROUP BY visittype";
@@ -130,10 +144,9 @@ if (!$result)
 									}
 									$remain_scanners = 4-$count_scan;
 							?>
-							<p style="color:#454df3;"> You have alresdy set values for <b><?php echo $count_scan;?></b> scanners<br>
-								Now you can setup <b><?php echo $remain_scanners;?></b> more scanners</p> 
-			                    <select class='scanner form-control form-control-sm' style='width:200px;'>
-									<option value='0' selected>-- Choose one --</option>
+							<p style="color:#454df3;"><b><?php echo $count_scan;?></b> Scanner fields configured. <b><?php echo $remain_scanners;?></b> available.</p>
+			                    		<select class='scanner form-control form-control-sm' style='width:200px;'>
+							<option value='0' selected>-- Select Quantity --</option>
 								
 								<?php
 									$j=1;
@@ -148,7 +161,7 @@ if (!$result)
 									<br/>";
 									if($count_scan=='0' || $count_scan=='' || $count_scan==null)
 									{
-										echo "<h3 style='color:red;'>No scanners found for this JOB";
+										echo "<h6 style='color:red;'>No Scanner fields configured for this job</h6>";
 									}
 									else
 									{
@@ -160,19 +173,19 @@ if (!$result)
 										{
 											echo "<tr>";
 												echo "<div class='form-group'>"; 
-													echo "<td>Scanner $select description/label:</td>";
+													echo "<td>Scanner $select label:</td>";
 													echo "<td><input type='text' id='".$row_scan_val['visitsid']."' value='".$row_scan_val['visittypedesc']."' class='form-control form-control-sm' style='width:250px;' disabled/></td>";
 													if($row_scan_val['ismandatory']=='1')
 													{
-														echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."' class='form-control form-control-sm' style='width:20px;' checked disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' checked disabled/></td>";
 													}
 													else
 													{
-													echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."'  class='form-control' style='width:20px;' disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' disabled/></td>";
 													}
 													
 													echo "<td>";
-														echo "<a class='btn btn-sm btn-danger edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
+														echo "<a class='btn btn-sm btn-primary edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
 													echo "</td>";
 													//echo 
 												echo "</div>";
@@ -197,11 +210,11 @@ if (!$result)
 														            New label: <input type='text' class='form-control form-control-sm new_term_".$row_scan_val['visitsid']."' name='new_label' placeholder='New label' id='new_label'  value='".$row_scan_val['visittypedesc']."'><br/>";
 														            if($row_scan_val['ismandatory']=='1')
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
 														            }
 														            else
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' disabled />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' disabled />";
 														            }
 														            
 														            echo "<input type='hidden' class='form-control job_val_".$row_scan_val['jobinfoid']."' id='job_val_".$row_scan_val['jobinfoid']."' value='".$row_scan_val['jobinfoid']."'>       
@@ -214,7 +227,7 @@ if (!$result)
 											            <!-- Modal Footer -->
 											            <div class='modal-footer'>
 											                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-											                <button type='button' class='btn btn-sm btn-danger btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
+											                <button type='button' class='btn btn-sm btn-primary btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
 											            </div>
 											        </div>
 											    </div>";
@@ -224,8 +237,6 @@ if (!$result)
 										echo "</td>";
 									}
 			                	?>
-								<br/>
-								</div>
 							</td>
 							<td>
 								<div class="col-md-12 scanner_data form-group">
@@ -235,7 +246,7 @@ if (!$result)
 						<tr>
 							<td>
 								<div class="col-md-12 form-group">
-									<label for="desc" class="col-sm-12 control-label">Desc/Text box:</label>
+									<h4>Textbox:</h4>
 					                <div class="col-sm-12">
 					                <?php
 				                		$sql_scan = "SELECT count(visittype) as count FROM visits  WHERE jobinfoid='$jobinfoid' AND visittype='1' GROUP BY visittype";
@@ -249,10 +260,9 @@ if (!$result)
 										}
 										$remain_scanners = 6-$count_scan;
 									?>
-									<p style="color:#454df3;"> You have alresdy set values for <b><?php echo $count_scan;?></b> text fields<br>
-										Now you can setup <b><?php echo $remain_scanners;?></b> more text fields</p> 
-				                    <select class='desc form-control form-control-sm' style='width:200px;'>
-										<option value='0' selected>-- Choose one --</option>
+									<p style="color:#454df3;"><b><?php echo $count_scan;?></b> Text fields configured. <b><?php echo $remain_scanners;?></b> available.</p> 
+						                        <select class='desc form-control form-control-sm' style='width:200px;'>
+									<option value='0' selected>-- Select Quantity --</option>
 											
 									<?php
 			                		
@@ -268,7 +278,7 @@ if (!$result)
 									<br/>";
 									if($count_scan=='0' || $count_scan=='' || $count_scan==null)
 									{
-										echo "<h3 style='color:red;'>No description/text terms found for this JOB";
+										echo "<h6 style='color:red;'>No Text fields configured for this job</h6>";
 									}
 									else
 									{
@@ -280,19 +290,19 @@ if (!$result)
 										{
 											echo "<tr>";
 												echo "<div class='form-group'>"; 
-													echo "<td>Desc/text $select description/label:</td>";
+													echo "<td>Textbox $select label:</td>";
 													echo "<td><input type='text' id='".$row_scan_val['visitsid']."' value='".$row_scan_val['visittypedesc']."' class='form-control form-control-sm' style='width:250px;' disabled/></td>";
 													if($row_scan_val['ismandatory']=='1')
 													{
-														echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."' class='form-control form-control-sm' style='width:20px;' checked disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' checked disabled/></td>";
 													}
 													else
 													{
-													echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."'  class='form-control form-control-sm' style='width:20px;' disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' disabled/></td>";
 													}
 													
 													echo "<td>";
-														echo "<a class='btn btn-sm btn-danger edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
+														echo "<a class='btn btn-sm btn-primary edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
 													echo "</td>";
 													//echo 
 												echo "</div>";
@@ -317,11 +327,11 @@ if (!$result)
 														            New label: <input type='text' class='form-control new_term_".$row_scan_val['visitsid']."' name='new_label' placeholder='New label' id='new_label'  value='".$row_scan_val['visittypedesc']."'><br/>";
 														            if($row_scan_val['ismandatory']=='1')
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked/>";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked/>";
 														            }
 														            else
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;'/>";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;'/>";
 														            }
 														            
 														            echo "<input type='hidden' class='form-control job_val_".$row_scan_val['jobinfoid']."' id='job_val_".$row_scan_val['jobinfoid']."' value='".$row_scan_val['jobinfoid']."'>
@@ -335,7 +345,7 @@ if (!$result)
 											            <!-- Modal Footer -->
 											            <div class='modal-footer'>
 											                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-											                <button type='button' class='btn btn-sm btn-danger btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
+											                <button type='button' class='btn btn-sm btn-primary btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
 											            </div>
 											        </div>
 											    </div>";
@@ -343,7 +353,6 @@ if (!$result)
 										echo "</table>";
 									}
 			                	?>
-									<br/>
 								
 							</td>
 							<td>
@@ -354,7 +363,7 @@ if (!$result)
 						<tr>
 							<td>
 								<div class="col-md-12 form-group">
-									<label for="date" class="col-sm-12 control-label">Date:</label>
+									<h4>Date:</h4>
 					                <div class="col-sm-12">
 					                <?php
 				                		$sql_scan = "SELECT count(visittype) as count FROM visits  WHERE jobinfoid='$jobinfoid' AND visittype='4' GROUP BY visittype";
@@ -368,10 +377,9 @@ if (!$result)
 										}
 										$remain_scanners = 2-$count_scan;
 									?>
-									<p style="color:#454df3;"> You have alresdy set values for <b><?php echo $count_scan;?></b> date terms<br>
-										Now you can setup <b><?php echo $remain_scanners;?></b> more date terms</p>
-					                    <select class='date form-control form-control-sm' style='width:200px;'>
-											<option value='0' selected>-- Choose one --</option>
+									<p style="color:#454df3;"><b><?php echo $count_scan;?></b> Date fields configured. <b><?php echo $remain_scanners;?></b> available.</p> 
+						                        <select class='date form-control form-control-sm' style='width:200px;'>
+									<option value='0' selected>-- Select Quantity --</option>
 											
 								<?php
 			                		
@@ -387,7 +395,7 @@ if (!$result)
 									<br/>";
 									if($count_scan=='0' || $count_scan=='' || $count_scan==null)
 									{
-										echo "<h3 style='color:red;'>No date terms found for this JOB";
+										echo "<h6 style='color:red;'>No Date fields configured for this job</h6>";
 									}
 									else
 									{
@@ -399,19 +407,19 @@ if (!$result)
 										{
 											echo "<tr>";
 												echo "<div class='form-group'>"; 
-													echo "<td>Date $select description/label:</td>";
+													echo "<td>Date $select label:</td>";
 													echo "<td><input type='text' id='".$row_scan_val['visitsid']."' value='".$row_scan_val['visittypedesc']."' class='form-control form-control-sm' style='width:250px;' disabled/></td>";
 													if($row_scan_val['ismandatory']=='1')
 													{
-														echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."' class='form-control form-control-sm' style='width:20px;' checked disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' checked disabled/></td>";
 													}
 													else
 													{
-													echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."'  class='form-control form-control-sm' style='width:20px;' disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' disabled/></td>";
 													}
 													
 													echo "<td>";
-														echo "<a class='btn btn-sm btn-danger edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
+														echo "<a class='btn btn-sm btn-primary edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
 													echo "</td>";
 													//echo 
 												echo "</div>";
@@ -436,11 +444,11 @@ if (!$result)
 														            New label: <input type='text' class='form-control form-control-sm new_term_".$row_scan_val['visitsid']."' name='new_label' placeholder='New label' id='new_label'  value='".$row_scan_val['visittypedesc']."'><br/>";
 														            if($row_scan_val['ismandatory']=='1')
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
 														            }
 														            else
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' />";
 														            }
 														            
 														            echo "<input type='hidden' class='form-control job_val_".$row_scan_val['jobinfoid']."' id='job_val_".$row_scan_val['jobinfoid']."' value='".$row_scan_val['jobinfoid']."'>       
@@ -453,7 +461,7 @@ if (!$result)
 											            <!-- Modal Footer -->
 											            <div class='modal-footer'>
 											                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-											                <button type='button' class='btn btn-sm btn-danger btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
+											                <button type='button' class='btn btn-sm btn-primary btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
 											            </div>
 											        </div>
 											    </div>";
@@ -463,8 +471,6 @@ if (!$result)
 										echo "</td>";
 									}
 			                	?>
-								<br/>
-								</div>
 							</td>
 							<td>
 								<div class="col-md-12 date_data form-group">
@@ -474,7 +480,7 @@ if (!$result)
 						<tr>
 							<td>
 								<div class="col-md-12 form-group">
-									<label for="dropdown" class="col-sm-12 control-label">Dropdown:</label>
+									<h4>Dropdown:</h4>
 					                <div class="col-sm-12">
 					                <?php
 				                		$sql_scan = "SELECT count(visittype) as count FROM visits  WHERE jobinfoid='$jobinfoid' AND visittype='5' GROUP BY visittype";
@@ -488,10 +494,9 @@ if (!$result)
 										}
 										$remain_scanners = 2-$count_scan;
 									?>
-									<p style="color:#454df3;"> You have alresdy set values for <b><?php echo $count_scan;?></b> dropdown terms<br>
-										Now you can setup <b><?php echo $remain_scanners;?></b> more dropdown terms</p>
-					                    <select class='dropdown form-control form-control-sm' style='width:200px;'>
-											<option value='0' selected>-- Choose one --</option>
+									<p style="color:#454df3;"><b><?php echo $count_scan;?></b> Dropdown fields configured. <b><?php echo $remain_scanners;?></b> available.</p> 
+					                    		<select class='dropdown form-control form-control-sm' style='width:200px;'>
+									<option value='0' selected>-- Select Quantity --</option>
 											
 								<?php
 			                		
@@ -507,7 +512,7 @@ if (!$result)
 									<br/>";
 									if($count_scan=='0' || $count_scan=='' || $count_scan==null)
 									{
-										echo "<h3 style='color:red;'>No dropdown/select found for this JOB";
+										echo "<h6 style='color:red;'>No Dropdown fields configured for this job</h6>";
 									}
 									else
 									{
@@ -519,19 +524,19 @@ if (!$result)
 										{
 											echo "<tr>";
 												echo "<div class='form-group'>"; 
-													echo "<td>Dropdown $select description/label:</td>";
+													echo "<td>Dropdown $select label:</td>";
 													echo "<td><input type='text' id='".$row_scan_val['visitsid']."' value='".$row_scan_val['visittypedesc']."' class='form-control form-control-sm' style='width:250px;' disabled/></td>";
 													if($row_scan_val['ismandatory']=='1')
 													{
-														echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."' class='form-control form-control-sm' style='width:20px;' checked disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' checked disabled/></td>";
 													}
 													else
 													{
-													echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."'  class='form-control form-control-sm' style='width:20px;' disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' disabled/></td>";
 													}
 													
 													echo "<td>";
-														echo "<a class='btn btn-sm btn-danger edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
+														echo "<a class='btn btn-sm btn-primary edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
 													echo "</td>";
 													//echo 
 												echo "</div>";
@@ -556,11 +561,11 @@ if (!$result)
 														            New label: <input type='text' class='form-control form-control-sm new_term_".$row_scan_val['visitsid']."' name='new_label' placeholder='New label' id='new_label'  value='".$row_scan_val['visittypedesc']."'><br/>";
 														            if($row_scan_val['ismandatory']=='1')
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
 														            }
 														            else
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' />";
 														            }
 														            
 														            echo "<input type='hidden' class='form-control job_val_".$row_scan_val['jobinfoid']."' id='job_val_".$row_scan_val['jobinfoid']."' value='".$row_scan_val['jobinfoid']."'>       
@@ -573,7 +578,7 @@ if (!$result)
 											            <!-- Modal Footer -->
 											            <div class='modal-footer'>
 											                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-											                <button type='button' class='btn btn-sm btn-danger btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
+											                <button type='button' class='btn btn-sm btn-primary btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
 											            </div>
 											        </div>
 											    </div>";
@@ -583,8 +588,6 @@ if (!$result)
 										echo "</td>";
 									}
 			                	?>
-								<br/>
-								</div>
 							</td>
 							<td>
 								<div class="col-md-12 dropdown_data form-group">
@@ -594,7 +597,7 @@ if (!$result)
 						<tr>
 							<td>
 								<div class="col-md-12 form-group">
-									<label for="image" class="col-sm-12 control-label">Image:</label>
+									<h4>Image:</h4>
 					                <div class="col-sm-12">
 					                <?php
 				                		$sql_scan = "SELECT count(visittype) as count FROM visits  WHERE jobinfoid='$jobinfoid' AND visittype='3' GROUP BY visittype";
@@ -608,10 +611,9 @@ if (!$result)
 										}
 										$remain_scanners = 2-$count_scan;
 									?>
-									<p style="color:#454df3;"> You have alresdy set values for <b><?php echo $count_scan;?></b> image terms<br>
-										Now you can setup <b><?php echo $remain_scanners;?></b> more image terms</p>
-					                    <select class='image form-control form-control-sm' style='width:200px;'>
-											<option value='0' selected>-- Choose one --</option>
+									<p style="color:#454df3;"><b><?php echo $count_scan;?></b> Image fields configured. <b><?php echo $remain_scanners;?></b> available.</p> 
+					                    		<select class='image form-control form-control-sm' style='width:200px;'>
+									<option value='0' selected>-- Select Quantity --</option>
 											
 								<?php
 			                		
@@ -627,7 +629,7 @@ if (!$result)
 									<br/>";
 									if($count_scan=='0' || $count_scan=='' || $count_scan==null)
 									{
-										echo "<h3 style='color:red;'>No image term found for this JOB";
+										echo "<h6 style='color:red;'>No Image fields configured for this job</h6>";
 									}
 									else
 									{
@@ -639,19 +641,19 @@ if (!$result)
 										{
 											echo "<tr>";
 												echo "<div class='form-group'>"; 
-													echo "<td>Image $select description/label:</td>";
+													echo "<td>Image $select label:</td>";
 													echo "<td><input type='text' id='".$row_scan_val['visitsid']."' value='".$row_scan_val['visittypedesc']."' class='form-control form-control-sm' style='width:250px;' disabled/></td>";
 													if($row_scan_val['ismandatory']=='1')
 													{
-														echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."' class='form-control form-control-sm' style='width:20px;' checked disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' checked disabled/></td>";
 													}
 													else
 													{
-													echo "<td><input type='checkbox' id='chk_".$row_scan_val['visitsid']."'  class='form-control form-control-sm' style='width:20px;' disabled/></td>";
+														echo "<td>Mandatory? <input type='checkbox' id='chk_".$row_scan_val['visitsid']."' style='width:20px;' disabled/></td>";
 													}
 													
 													echo "<td>";
-														echo "<a class='btn btn-sm btn-danger edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
+														echo "<a class='btn btn-sm btn-primary edit_label' href='#edit_label_".$row_scan_val['visitsid']."' data-toggle='modal'>Edit</a><br/>";
 													echo "</td>";
 													//echo 
 												echo "</div>";
@@ -676,11 +678,11 @@ if (!$result)
 														            New label: <input type='text' class='form-control form-control-sm new_term_".$row_scan_val['visitsid']."' name='new_label' placeholder='New label' id='new_label'  value='".$row_scan_val['visittypedesc']."'><br/>";
 														            if($row_scan_val['ismandatory']=='1')
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' checked />";
 														            }
 														            else
 														            {
-														            	echo "Is Mandatory: <input type='checkbox' class='form-control form-control-sm new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' />";
+														            	echo "Is Mandatory? <input type='checkbox' class='new_chk_".$row_scan_val['visitsid']."' name='new_check' id='new_check' style='width:20px;' />";
 														            }
 														            
 														            echo "<input type='hidden' class='form-control job_val_".$row_scan_val['jobinfoid']."' id='job_val_".$row_scan_val['jobinfoid']."' value='".$row_scan_val['jobinfoid']."'>       
@@ -693,7 +695,7 @@ if (!$result)
 											            <!-- Modal Footer -->
 											            <div class='modal-footer'>
 											                <button type='button' class='btn btn-sm btn-default' data-dismiss='modal'>Close</button>
-											                <button type='button' class='btn btn-sm btn-danger btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
+											                <button type='button' class='btn btn-sm btn-primary btn_update_visit_desc' value='".$row_scan_val['visitsid']."'>Update</button>
 											            </div>
 											        </div>
 											    </div>";
@@ -703,8 +705,6 @@ if (!$result)
 										echo "</td>";
 									}
 			                	?>
-								<br/>
-								</div>
 							</td>
 							<td>
 								<div class="col-md-12 image_data form-group">
@@ -713,18 +713,13 @@ if (!$result)
 						</tr>
 						<tr>
 							<td>
-								<input type='button' class='btn btn-sm btn-info btn-save' value="Save">
+								<input type='button' class='btn btn-sm btn-success btn-save' value="Save">
 							</td>
 							<td class='status'>
 							</td>
 						</tr>
 					</table>
-				</div>	
 			<?php
-				}
-				else
-				{
-					echo "<h5>Please select job from list</h5>";
 				}
 			?>
 			</div>
@@ -765,7 +760,7 @@ $(document).ready(function(){
 	    var container = $('<div/>');
 	    for(var i = 1; i <= scanner_count; i++) 
 	    {
-	         container.append('Lable '+i+': <input id="scanner'+i+'" name="scanner'+i+'" required class="form-control form-control-sm"/> Is mandatory <input type="checkbox" id="chk_scanner'+i+'" name="chk_scanner'+i+'"><hr/>');
+	         container.append('Label '+i+': <input id="scanner'+i+'" name="scanner'+i+'" required class="form-control form-control-sm"/> Is Mandatory? <input type="checkbox" id="chk_scanner'+i+'" name="chk_scanner'+i+'"><hr/>');
 	    }
 	    $('.scanner_data').html(container);
 	});
@@ -777,7 +772,7 @@ $(document).ready(function(){
 	    var container = $('<div />');
 	    for(var i = 1; i <= desc_count; i++) 
 	    {
-	         container.append('Lable '+i+': <input id="desc'+i+'" name="desc'+i+'" class="form-control form-control-sm"/> Is mandatory <input type="checkbox" id="chk_desc'+i+'" name="chk_desc'+i+'"><hr/>');
+	         container.append('Label '+i+': <input id="desc'+i+'" name="desc'+i+'" class="form-control form-control-sm"/> Is Mandatory? <input type="checkbox" id="chk_desc'+i+'" name="chk_desc'+i+'"><hr/>');
 	    }
 	    $('.desc_data').html(container);
 	});
@@ -788,7 +783,7 @@ $(document).ready(function(){
 	    var container = $('<div />');
 	    for(var i = 1; i <= date_count; i++) 
 	    {
-	         container.append('Lable '+i+': <input id="date'+i+'" name="date'+i+'" class="form-control form-control-sm"/> Is mandatory <input type="checkbox" id="chk_date'+i+'" name="chk_date'+i+'"><hr/>');
+	         container.append('Label '+i+': <input id="date'+i+'" name="date'+i+'" class="form-control form-control-sm"/> Is Mandatory? <input type="checkbox" id="chk_date'+i+'" name="chk_date'+i+'"><hr/>');
 	    }
 	    $('.date_data').html(container);
 	});
@@ -799,7 +794,7 @@ $(document).ready(function(){
 	    var container = $('<div />');
 	    for(var i = 1; i <= dropdown_count; i++) 
 	    {
-	         container.append('Lable '+i+': <input id="dropdown'+i+'" name="dropdown'+i+'" class="form-control form-control-sm"/> Is mandatory <input type="checkbox" id="chk_dropdown'+i+'" name="chk_dropdown'+i+'"><hr/>');
+	         container.append('Label '+i+': <input id="dropdown'+i+'" name="dropdown'+i+'" class="form-control form-control-sm"/> Is Mandatory? <input type="checkbox" id="chk_dropdown'+i+'" name="chk_dropdown'+i+'"><hr/>');
 	    }
 	    $('.dropdown_data').html(container);
 	});
@@ -810,7 +805,7 @@ $(document).ready(function(){
 	    var container = $('<div />');
 	    for(var i = 1; i <= image_count; i++) 
 	    {
-	         container.append('Lable '+i+': <input id="image'+i+'" name="image'+i+'" class="form-control form-control-sm"/> Is mandatory <input type="checkbox" id="chk_image'+i+'" name="chk_image'+i+'" ><hr/>');
+	         container.append('Label '+i+': <input id="image'+i+'" name="image'+i+'" class="form-control form-control-sm"/> Is Mandatory? <input type="checkbox" id="chk_image'+i+'" name="chk_image'+i+'" ><hr/>');
 	    }
 	    $('.image_data').html(container);
 	});
@@ -965,7 +960,7 @@ $(document).ready(function(){
 		$.ajax({
 			type : 'post',
 			url : 'visits_helper.php',
-			data : data+'&task=add_visit',
+			data : data+'&task=add_visit'+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>'),
 			success : function(res)
 			{
 				if(res=='conn_error')
@@ -1007,7 +1002,7 @@ $(document).ready(function(){
 		{
 			new_is_mandatory = '0';
 		}
-		var data = 'visitsid='+visitsid+'&jobinfoid='+jobinfoid+'&visit_desc='+visit_desc+'&new_is_mandatory='+new_is_mandatory+'&task='+task;
+		var data = 'visitsid='+visitsid+'&jobinfoid='+jobinfoid+'&visit_desc='+visit_desc+'&new_is_mandatory='+new_is_mandatory+'&task='+task+'&csrf_token='+encodeURIComponent('<?php echo $_SESSION['csrf_token']; ?>');
 
 		$.ajax({
 			type : 'post',

@@ -1,119 +1,159 @@
 <?php 
-    session_start();
-    require_once 'php/config.php';
-    error_reporting(0);
-    date_default_timezone_set('Asia/Calcutta');
-    
-    if(isset($_POST['login_btn']))
+session_start();
+if(isset($_SESSION['user']) && $_SESSION['user'] != '')
+{
+	header('Location: index.php');
+	exit;
+}
+
+require_once 'php/config.php';
+//error_reporting(0);
+date_default_timezone_set('Asia/Calcutta');
+
+// Quote variable to make safe
+function quote_smart($value)
+{
+    // Strip HTML & PHP tags & convert all applicable characters to HTML entities
+    $value = trim(htmlentities(strip_tags($value)));    
+
+    // Stripslashes
+    if ( get_magic_quotes_gpc() )
     {
-
-        $emailid = trim($_POST['emailid']);
-        $emailid = strip_tags($emailid);
-        $emailid = htmlspecialchars($emailid);
-
-        $password = trim($_POST['password']);
-        $password = strip_tags($password);
-        $password = htmlspecialchars($password);
-
-        $captcha = $_POST['vercode'];
-
-        $conn = pg_connect($conn_string);
-
-        if(!$conn)
-        {
-            $errorMessage = 'Error establishing database connection.';
-        }
-
-        //$password = hash('sha256', $password);
-        $password = hash('sha512', $password);
-
-        $query = "SELECT * FROM admininfo WHERE emailid='$emailid'";
-        $result = pg_query($conn, $query);
-
-        if (!$result)
-        {
-            $errorMessage = 'Error executing query';
-        }
-
-        $count = pg_num_rows($result); 
-        $row = pg_fetch_array($result);
-
-        if( $count == 1) 
-        {
-            //For current password
-            if( $row['password']==$password )
-            {
-                if (($_POST['vercode'] != $_SESSION['vercode']) || $_SESSION['vercode']=='')  
-                {
-                    $errorMessage = 'Invalid captcha';
-                }
-                else
-                {
-                    $_SESSION['user'] = $row['firstname'];
-                    $_SESSION['emailid'] = $row['emailid'];
-                    $_SESSION['admininfoid'] = $row['admininfoid'];
-                    $_SESSION['superadmin'] = $row['superadmin'];
-                    echo "<script> window.location.assign('index.php');</script>";
-                }
-            }
-            
-            else
-            //For temporary password
-            if( $row['tmp_password']==$password )
-            {
-                if (($_POST['vercode'] != $_SESSION['vercode']) || $_SESSION['vercode']=='')  
-                {
-                    $errorMessage = 'Invalid captcha';
-                }
-                else
-                {
-                  $today = date('Y-m-d H:i:s');
-                  $tmp_password_createdon = $row['tmp_password_createdon'];
-                  $tmp_pass_validity = date($tmp_password_createdon, strtotime("+60 minutes"));
-                  if($tmp_pass_validity>=$today)
-                  {
-                    $_SESSION['user'] = $row['firstname'];
-                    $_SESSION['emailid'] = $row['emailid'];
-                    $_SESSION['admininfoid'] = $row['admininfoid'];
-                    $_SESSION['superadmin'] = $row['superadmin'];
-                    echo "<script> window.location.assign('index.php');</script>";
-                  }
-                  else
-                  {
-                    $errorMessage = "Temporary password expired already.<br/>
-                      Please click on forgot password link to get another temporary paassword.";
-                  }  
-                }
-            }
-            else
-            {
-                $errorMessage = 'Password does not match!';
-            }
-            
-        } 
-        else 
-        {
-            $errorMessage = 'Email id does not exists!';
-        }
+        $value = stripslashes( $value );
     }
-?>
+    // Quote if not a number or a numeric string
+    if ( !is_numeric( $value ) )
+    {
+         $value = pg_escape_string($value);
+    }
+    return $value;
+}
 
+//if(isset($_POST['login_btn']))
+//{
+if(isset($_POST['g-recaptcha-response']) && !empty($_POST['g-recaptcha-response']))
+{	    
+	//your site secret key
+	$secret = '6Lcqo2IUAAAAABrY-AIX_EADg5N1WOrR53QFUr0G';
+	//get verify response data
+	$verifyResponse = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret='.$secret.'&response='.$_POST['g-recaptcha-response']);
+	$responseData = json_decode($verifyResponse);
+	if($responseData->success)
+	{
+
+		$emailid = quote_smart($_POST['emailid']);
+		$password = quote_smart($_POST['password']);
+
+		$conn = pg_connect($conn_string);
+
+		if(!$conn)
+		{
+			$errorMessage = 'Error establishing database connection.';
+		}
+		else
+		{
+			//$password = hash('sha256', $password);
+			$password = hash('sha512', $password);
+
+			$query = "SELECT * FROM admininfo WHERE emailid='$emailid'";
+			$result = pg_query($conn, $query);
+
+			if (!$result)
+			{
+				$errorMessage = 'Error executing query';
+			}
+			else
+			{
+
+				$count = pg_num_rows($result); 
+				$row = pg_fetch_array($result);
+
+				if( $count == 1) 
+				{
+					if( $row['password']==$password ) //For current password
+					{
+						session_regenerate_id();
+						$_SESSION['csrf_token'] = base64_encode(openssl_random_pseudo_bytes(32));
+						$_SESSION['user'] = $row['firstname'];
+						$_SESSION['emailid'] = $row['emailid'];
+						$_SESSION['admininfoid'] = $row['admininfoid'];
+						$_SESSION['superadmin'] = $row['superadmin'];
+
+						$sess_qry = "UPDATE admininfo SET sessionid='" . session_id() . "', loggedinon='" . date('Y-m-d H:i:s') . "' WHERE emailid='$emailid'";
+						$result = pg_query($conn, $sess_qry);
+						if (!$result)
+						{
+							$errorMessage = 'Error updating session';
+						}
+						else
+						{
+							header('Location: index.php');
+							exit;
+						}
+					}
+					else if( $row['tmp_password']==$password ) //For temporary password
+					{
+						$today = date('Y-m-d H:i:s');
+						$tmp_password_createdon = $row['tmp_password_createdon'];
+						$tmp_pass_validity=date("Y-m-d H:i:s",strtotime('+24 hours', strtotime($tmp_password_createdon)));
+						if($tmp_pass_validity>=$today)
+						{
+							session_regenerate_id();
+							$_SESSION['csrf_token'] = base64_encode(openssl_random_pseudo_bytes(32));
+							$_SESSION['user'] = $row['firstname'];
+							$_SESSION['emailid'] = $row['emailid'];
+							$_SESSION['admininfoid'] = $row['admininfoid'];
+							$_SESSION['superadmin'] = $row['superadmin'];
+
+							$sess_qry = "UPDATE admininfo SET sessionid='" . session_id() . "', loggedinon='" . date('Y-m-d H:i:s') . "' WHERE emailid='$emailid'";
+							$result = pg_query($conn, $sess_qry);
+							if (!$result)
+							{
+								$errorMessage = 'Error updating session';
+							}
+							else
+							{
+								header('Location: index.php');
+								exit;
+							}
+						}
+						else
+						{
+							$errorMessage = "Temporary password expired.<br/>
+								Please click on forgot password link to generate another temporary password.";
+						}  
+					}
+					else
+					{
+						$errorMessage = 'Wrong Email Id / Password!';
+					}
+				} 
+				else 
+				{
+					$errorMessage = 'Wrong Email Id / Password!';
+				}
+			}
+		}
+	}
+	else
+	{
+		$errorMessage = 'reCAPTCHA verification failed, please try again.';
+	}
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="csrf-param" content="authenticity_token" />
-<meta name="csrf-token" content="XvBNaxjvfYAAmfnt75yYa2ftkG02wFSqA2aslOUmzZ2aLSGMNPdS0fad9goHPZVtVCMXXI+DBZ9Dd1viOk1PEQ==" />
-<title>Sign in </title>
+<title>Sign In</title>
 <link rel="stylesheet" media="screen" href="css/fullpage.css" />
 
-  <link href='https://fonts.googleapis.com/css?family=Lato:400,900,400italic,700italic' rel='stylesheet'>
+  <!--link href='https://fonts.googleapis.com/css?family=Lato:400,900,400italic,700italic' rel='stylesheet'-->
 
-    <script async src="//www.google-analytics.com/analytics.js"></script>
     <style>
-      @import url('https://fonts.googleapis.com/css?family=Poppins');
+      /*@import url('https://fonts.googleapis.com/css?family=Poppins');*/
 
       /* BASIC CSS */
 
@@ -162,7 +202,7 @@
         border-radius: 10px 10px 10px 10px;
         background: #fff;
         padding: 30px;
-        width: 70%;
+	width: 100%;
         max-width: 400px;
         position: relative;
         padding: 0px;
@@ -198,7 +238,7 @@
 
       /* FORM TYPOGRAPHY*/
 
-      input[type=button], input[type=submit], input[type=reset]  {
+      input[type=button], input[type=submit], input[type=reset], button  {
         background-color: #454df3;
         border: none;
         color: white;
@@ -220,11 +260,11 @@
         transition: all 0.3s ease-in-out;
       }
 
-      input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover  {
+      input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover, button:hover  {
         background-color: #39ace7;
       }
 
-      input[type=button]:active, input[type=submit]:active, input[type=reset]:active  {
+      input[type=button]:active, input[type=submit]:active, input[type=reset]:active, button:active  {
         -moz-transform: scale(0.95);
         -webkit-transform: scale(0.95);
         -o-transform: scale(0.95);
@@ -417,6 +457,39 @@
         box-sizing: border-box;
       }
     </style>
+
+<script>
+function onSubmit(token)
+{
+     document.getElementById("frmLogin").submit();
+}
+
+function validate(event) 
+{
+    event.preventDefault();
+    if (!document.getElementById('login').value)
+    {
+      	alert("Please enter your Email Id!");
+    }
+    else if (!document.getElementById('password').value)
+    {
+      	alert("Please enter your Password!");
+    }    
+    else 
+    {
+      	grecaptcha.execute();
+    }
+}
+
+function onload() 
+{
+    var element = document.getElementById('recaptcha-submit');
+    element.onclick = validate;
+}
+</script>
+
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
 </head>
 <body>
     <div class="wrapper fadeInDown">
@@ -430,19 +503,34 @@
             </div>
 
             <!-- Login Form -->
-            <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>" autocomplete="off">
+            <form method="post" name="frmLogin" id="frmLogin" action="<?php echo $_SERVER['PHP_SELF']; ?>" autocomplete="off">
                 <input type="text" id="login" class="fadeIn second" name="emailid" autocomplete="off" value="<?php echo $emailid?>" placeholder="Email Id" required />
                 <input type="password" id="password" class="fadeIn third" name="password" autocomplete="off" value="<?php echo $password?>" placeholder="Password" required />
-		<p>
+		<!--p>
 			<img src="php/captcha.php" class="fadeIn fourth" style="vertical-align: middle;">
 			<input type="text" id="vercode" class="fadeIn fourth" style="max-width: 250px;" name="vercode" autocomplete="off" value="<?php echo $captcha?>" placeholder="Enter Captcha" required />
-    		</p>
+		</p-->
+		<div align='center' style='margin: 5px;'
+			id='recaptcha' 
+			class="g-recaptcha"
+			data-sitekey="6Lcqo2IUAAAAAMac1Ev32prXPIvLdAcI_8UpM6Cn"
+			data-callback="onSubmit"
+			data-size="invisible"
+			data-badge="inline">
+		</div>
     <?php
       if ($errorMessage != '')
       {
         echo "<div class='alert alert-danger' style='padding: 10px; margin-bottom: 10px;'>";
         echo "<strong style='color:red;'>Error! $errorMessage</strong>";
         echo "</div>";
+      }
+      if ($_SESSION['errormessage'] != '')
+      {
+        echo "<div class='alert alert-danger' style='padding: 10px; margin-bottom: 10px;'>";
+        echo "<strong style='color:red;'>Error! " . $_SESSION['errormessage'] . "</strong>";
+	echo "</div>";
+	unset($_SESSION['errormessage']);
       }
       if ($successMessage != '')
       {
@@ -451,7 +539,8 @@
         echo "</div>";
       }
     ?>
-                <input type="submit" class="fadeIn fifth btn btn-info" name='login_btn' value="Log In">
+		<button name="recaptcha-submit" id="recaptcha-submit" class="fadeIn fifth btn btn-info">Login</button>
+	    <script>onload();</script>
             </form>
 
             <!-- Remind Passowrd -->
