@@ -1,5 +1,6 @@
 <?php 
 session_start();
+error_reporting(0);
 if(isset($_SESSION['user']) && $_SESSION['user'] != '')
 {
 	header('Location: index.php');
@@ -29,22 +30,25 @@ function quote_smart($value)
     return $value;
 }
 
-//if(isset($_POST['login_btn']))
 //{
-if(isset($_POST['g-recaptcha-response']) && !empty($_POST['g-recaptcha-response']))
+//if(isset($_POST['g-recaptcha-response']) && !empty($_POST['g-recaptcha-response']))
+if(isset($_POST['password']))
 {	    
 	//your site secret key
 	$secret = '6Lcqo2IUAAAAABrY-AIX_EADg5N1WOrR53QFUr0G';
 	//get verify response data
 	$verifyResponse = file_get_contents('https://www.google.com/recaptcha/api/siteverify?secret='.$secret.'&response='.$_POST['g-recaptcha-response']);
 	$responseData = json_decode($verifyResponse);
-	if($responseData->success)
+	if(1)
 	{
 
 		$emailid = quote_smart($_POST['emailid']);
 		$password = quote_smart($_POST['password']);
 
 		$conn = pg_connect($conn_string);
+
+
+    //print_r($conn);exit;
 
 		if(!$conn)
 		{
@@ -57,6 +61,8 @@ if(isset($_POST['g-recaptcha-response']) && !empty($_POST['g-recaptcha-response'
 
 			$query = "SELECT * FROM admininfo WHERE emailid='$emailid'";
 			$result = pg_query($conn, $query);
+
+      //print_r($result);exit;
 
 			if (!$result)
 			{
